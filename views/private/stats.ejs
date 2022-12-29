@@ -1,0 +1,160 @@
+<link rel="stylesheet" href="/bootstrap-table/bootstrap-table.min.css" />
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<form id="RegistryForm" class="form-horizontal">
+				<div class="card-body">
+					<div class="row">
+						<div class="form-group row col-md-6">
+							<label for="skater" class="col-sm-3 text-end control-label col-form-label"> <%= __('MODEL_Registry_skater')%> </label>
+							<div class="col-sm-9">
+								<select id="skater" name="skater" data-hide-detail-link="true" class="select2 form-select shadow-none" style="width: 100%; height: 36px" data-collection="Skater" data-sort="fullname" data-show="fullname" data-value="<%=locals.object && locals.object.skater ? object.skater._id : ''%>"></select>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="card mt-0">
+								<div class="row">
+									<div class="col-md-6">
+										<div class="peity_bar_bad left text-center mt-2">
+											<span style="display: none" id="num-kpi"></span>
+											</span>
+											<h6 id="lbl-kpi"></h6>
+										</div>
+									</div>
+									<div class="col-md-6 border-left text-center pt-2">
+										<h3 class="mb-0 fw-bold" id="num-records">--</h3>
+										<span class="text-muted">Registros</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+		<div class="card">
+			<div class="card-body">
+				<div type="button" data-bs-toggle="collapse" data-bs-target="#registriesDist" aria-expanded="false" aria-controls="searchpanel">
+					<h5 class="card-title"><i class="fas fa-angle-double-up"></i> Distribución de registros</h5>
+				</div>
+				<div class="show" id="registriesDist">
+					<div class="row">
+						<div class="col-md-4">
+							<div class="chart-container">
+								<canvas id="registry-per-year"></canvas>
+							</div>
+						</div>
+						<div class="col-md-4">
+							<div class="chart-container">
+								<canvas id="registry-per-category"></canvas>
+							</div>
+						</div>
+						<div class="col-md-4">
+							<div class="chart-container">
+								<canvas id="registry-per-club"></canvas>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<div class="card-body">
+				<div type="button" data-bs-toggle="collapse" data-bs-target="#bestTimes" aria-expanded="false" aria-controls="searchpanel">
+					<h5 class="card-title"><i class="fas fa-angle-double-up"></i> Mejores tiempos por prueba</h5>
+				</div>
+				<div class="show" id="bestTimes">
+					<div class="table-responsive">
+						<table id="summary_table" data-toggle="table" data-url="" data-sortable="true" data-detail-view="true" data-detail-view-icon="true" data-detail-formatter="registryDetailFormatter">
+							<thead>
+								<tr>
+									<th data-field="race" data-sortable="true"><%= __('COL_race') %></th>
+									<th data-field="distance" data-formatter="core.formatters.distance" data-sortable="true"><%= __('COL_distance') %></th>
+									<th data-field="competition.track.name" data-sortable="true"><%= __('COL_track') %></th>
+									<th data-field="category" data-sortable="true"><%= __('COL_category') %></th>
+									<th data-field="date" data-formatter="core.formatters.date" data-sortable="true"><%= __('COL_date') %></th>
+									<th data-field="competition.fullname" data-sortable="true"><%= __('COL_competition') %></th>
+									<th data-field="times" data-sortable="true" data-width="100" data-formatter="formatterMillisecondsArray" data-visible="false"><%= __('COL_partialTimes') %></th>
+									<th data-field="totalTime" data-formatter="core.formatters.milliseconds" data-sortable="true"><%= __('COL_time') %></th>
+									<th data-field="speed" data-formatter="core.formatters.speed" data-sortable="true"><%= __('COL_speed') %></th>
+								</tr>
+							</thead>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<div class="card-body">
+				<div type="button" data-bs-toggle="collapse" data-bs-target="#raceEvolution" aria-expanded="false" aria-controls="searchpanel">
+					<h5 class="card-title"><i class="fas fa-angle-double-up"></i> Evolución de prueba</h5>
+				</div>
+				<div class="show" id="raceEvolution">
+					<div class="row col-12">
+						<div class="form-group row col-md-9">
+							<label for="skater" class="col-md-3 text-end control-label col-form-label"> <%= __('MODEL_Registry_race')%> </label>
+							<div class="col-md-9">
+								<select id="race" name="race" class="select2 form-select shadow-none" style="width: 100%; height: 36px"></select>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="card">
+								<div class="row">
+									<div class="col-md-6 border-left text-center pt-2">
+										<h3 class="mb-0 fw-bold" id="num-records-race">--</h3>
+										<span class="text-muted">Registros</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row col-12 table-responsive">
+						<table id="race-table" data-toggle="table" data-sortable="true" data-detail-view="true" data-detail-view-icon="true" data-detail-formatter="registryDetailFormatter">
+							<thead>
+								<tr>
+									<th data-field="distance" data-formatter="core.formatters.distance" data-sortable="true"><%= __('COL_distance') %></th>
+									<th data-field="competition.track.name" data-sortable="true"><%= __('COL_track') %></th>
+									<th data-field="category" data-sortable="true"><%= __('COL_category') %></th>
+									<th data-field="date" data-formatter="core.formatters.date" data-sortable="true"><%= __('COL_date') %></th>
+									<th data-field="competition.fullname" data-sortable="true"><%= __('COL_competition') %></th>
+									<th data-field="times" data-sortable="true" data-width="100" data-formatter="formatterMillisecondsArray" data-visible="false"><%= __('COL_partialTimes') %></th>
+									<th data-field="totalTime" data-formatter="core.formatters.milliseconds" data-sortable="true"><%= __('COL_time') %></th>
+									<th data-field="speed" data-formatter="core.formatters.speed" data-sortable="true"><%= __('COL_speed') %></th>
+								</tr>
+							</thead>
+						</table>
+					</div>
+					<div class="row">
+						<div class="col-12">
+							<div class="chart-container">
+								<canvas id="race-evolution"></canvas>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- <script src="/assets/libs/chart/jquery.peity.min.js"></script> -->
+<script src="/chart/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://d3js.org/d3-array.v2.min.js"></script>
+<script src="https://www.unpkg.com/@tidyjs/tidy/dist/umd/tidy.min.js"></script>
+<script src="/peity/jquery.peity.js"></script>
+<script src="/js/stats-charts.js"></script>
+<script>
+	var charts = new StatCharts(null)
+	$("#skater").on("change", function() {
+		core.api.find("/api/registry", {
+			skater: $('#skater').val()
+		}, function(response) {
+			data = response
+			charts.refreshData(data)
+		})
+	})
+
+	$('#race').on('change', function() {
+		charts.updateRace()
+	})
+</script>

@@ -1,0 +1,146 @@
+<link rel="stylesheet" type="text/css" href="/assets/libs/select2/dist/css/select2.min.css" />
+<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<form id="CompetitionForm" class="form-horizontal">
+				<div class="card-body">
+					<h4 class="card-title">
+						<%= __('MODEL_Competition') %>
+					</h4>
+					<div class="form-group row">
+						<label for="name" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_name')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="name" name="name" placeholder="" value="<%= locals.object ? object['name'] : '' %>" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="date" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_date')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="date" name="date" date-value="<%= locals.object ? moment.utc(object['date']) : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="date" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_dateEnd')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="dateEnd" name="dateEnd" date-value="<%= locals.object ? moment.utc(object['dateEnd']) : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="season" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_season')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="season" name="season" placeholder="" value="<%= locals.object ? object['season'] : '' %>" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="training" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_training')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="training" name="training" class="select2 form-select shadow-none" style="width: 100%; height: 36px">
+								<option value=""></option>
+								<option <%=locals.object && object["training"] ? 'selected' : '' %> value="true"><%= __('BOOLEAN_true') %></option>
+								<option <%=locals.object && !object["training"] ? 'selected' : '' %> value="false"><%= __('BOOLEAN_false') %></option>
+								</option>
+							</select>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="track" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_track')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<div class="col-10">
+									<select id="track" name="track" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Track" data-show="name" data-value="<%= locals.object && locals.object.track ? object.track._id : '' %>"></select>
+								</div>
+								<div class="col-2" style="height: 100%">
+									<button type="button" class="btn btn-warning text-white input-group-text input-group-append" data-bs-toggle="modal" data-bs-target="#NewTrackModal" style="width: 100%; height: 40px">
+										<%= __('NEW') %>
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="createdAt" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_createdAt')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="createdAt" name="createdAt" disabled date-value="<%= locals.object ? object['createdAt'] : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="updatedAt" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_updatedAt')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="updatedAt" name="updatedAt" disabled date-value="<%= locals.object ? object['updatedAt'] : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
+					<div class="border-top">
+						<div class="card-body" data-type="action-buttons" data-entity="<%=locals.model.modelName%>" data-permissions="<%=locals.permissions.join('')%>" data-new="/<%=locals.view%>">
+							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/competition/${$('#id').val()}/registries`)"><%= __('VIEW_REGISTRIES') %></button>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade modal-new" id="NewTrackModal" tabindex="-1" role="dialog" aria-labelledby="NewTrackModal" aria-hidden="true" data-api="/api/track" data-entity="track">
+	<div class="modal-dialog modal-xl" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="NewTrackModalLabel"><%= __('CREATE_NEW_TRACK') %></h5>
+				<button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body"><%- include('./track.ejs', {formName :'TrackForm', api:'/api/track', object: null, model : {modelName : 'Track'}}) %></div>
+			<div class="modal-footer">
+				<button id="" type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('CLOSE') %></button>
+				<button id="$TrackForm_submit_btn_modal" type="button" class="btn btn-primary"><%= __('SAVE_&_CONTINUE') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- <script>
+	$('#CompetitionForm_submit_btn').click(() => {
+		values = core.forms.parse('CompetitionForm')
+		if (values.id) core.api.update('/api/competition', values.id, values, null)
+		else core.api.create('/api/competition', values, null)
+	})
+	$('#CompetitionForm_list_btn').click(() => {
+		window.location.replace('/management/competition-list')
+	})
+</script> -->

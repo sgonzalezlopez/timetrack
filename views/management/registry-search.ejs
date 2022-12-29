@@ -1,0 +1,237 @@
+<link rel="stylesheet" type="text/css" href="/assets/libs/select2/dist/css/select2.min.css" />
+<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
+<link rel="stylesheet" href="/bootstrap-table/bootstrap-table.min.css">
+<div class="card">
+	<form id="RegistryForm" class="form-horizontal">
+		<div class="card-body">
+			<div type="button" data-bs-toggle="collapse" data-bs-target="#searchpanel" aria-expanded="false" aria-controls="searchpanel">
+				<h4 class="card-title"><i class="fas fa-angle-double-up"></i>
+					<%= __('Search Criteria') %>
+				</h4>
+			</div>
+			<div class="show" id="searchpanel">
+				<div class="row">
+					<div class="form-group row col-md-6">
+						<label for="date" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_date')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="date" name="date" value="" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row col-md-6">
+						<label for="skater" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_skater')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="skater" name="skater" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Skater" data-sort="fullname" data-show="fullname" data-value=""></select> %>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="form-group row col-md-6">
+						<label for="club" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_club')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="club" name="club" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Club" data-sort="name" data-show="name" data-value=""></select>
+						</div>
+					</div>
+					<div class="form-group row col-md-6">
+						<label for="category" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_category')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="category" name="category" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="categories" multiple data-value=""></select>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="form-group row col-md-6">
+						<label for="competition" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_competition')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="competition" name="competition" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-sort="fullname" data-collection="Competition" data-show="fullname"></select> %>
+						</div>
+					</div>
+					<div class="form-group row col-md-6">
+						<label for="race" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_race')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="race" name="race" placeholder="" value="" />
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="form-group row col-md-6">
+						<label for="season" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_season')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="season" name="season" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-distinct="season" data-collection="Competition" data-sort="season" data-show="season" data-value="season"></select>
+						</div>
+					</div>
+					<div class="form-group row col-md-6">
+						<label for="gender" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Skater_gender')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="gender" name="gender" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="gender" data-value=""></select> %>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="form-group row col-md-6">
+						<label for="distance" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_distance')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="number" class="form-control" id="distance" name="distance" placeholder="" value='' />
+						</div>
+					</div>
+					<div class="form-group row col-md-6">
+						<label for="rail" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_rail')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="rail" name="rail" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="rails" data-value=""></select> %>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="form-group row col-md-6">
+						<label for="starting" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_starting')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="starting" name="starting" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="starting" data-value=""></select> %>
+						</div>
+					</div>
+					<div class="form-group row col-md-6">
+						<label for="starting" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Registry_training')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="training" name="training" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-boolean="true"></select>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="form-group row col-md-6">
+						<label for="track" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Competition_track')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="track" name="track" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Track" data-show="fullname" data-value=""></select> %>
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="border-top">
+						<div class="card-body">
+							<button id="RegistryForm_search_btn" type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#searchpanel">
+								<%= __('SEARCH') %>
+							</button>
+							<% if (locals.permissions.includes('C')) { %>
+							<button id="RegistryForm_new_btn" type="button" class="btn btn-warning"><%= __('CREATE_NEW') %></button>
+							<% } %>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</form>
+</div>
+<div class="card">
+	<div class="card-body">
+		<h5 class="card-title"><%= __('Registry') %></h5>
+		<div class="table-responsive">
+			<table id="table" data-detail-view="true" data-detail-view-icon="true" data-detail-formatter="registryDetailFormatter" data-toggle="table" data-sortable="true" data-api="/api/registry" class="table table-striped table-bordered clickable" detail-url="/management/registry/">
+				<thead>
+					<tr>
+						<th data-field="date" data-formatter="core.formatters.date" data-sortable="true">
+							<%= __('COL_date') %>
+						</th>
+						<th data-field="skater.fullname" data-sortable="true">
+							<%= __('COL_skater') %>
+						</th>
+						<th data-field="club.name" data-sortable="true">
+							<%= __('COL_club') %>
+						</th>
+						<th data-field="category" data-sortable="true">
+							<%= __('COL_category') %>
+						</th>
+						<th data-field="skater.gender" data-sortable="true">
+							<%= __('COL_gender') %>
+						</th>
+						<th data-field="competition.fullname" data-sortable="true">
+							<%= __('COL_competition') %>
+						</th>
+						<th data-field="competition.track.fullname" data-sortable="true" data-visible="false">
+							<%= __('COL_track') %>
+						</th>
+						<th data-field="race" data-sortable="true">
+							<%= __('COL_race') %>
+						</th>
+						<th data-field="distance" data-sortable="true">
+							<%= __('COL_distance') %>
+						</th>
+						<th data-field="rail" data-sortable="true" data-visible="false">
+							<%= __('COL_rail') %>
+						</th>
+						<th data-field="starting" data-sortable="true" data-visible="false">
+							<%= __('COL_starting') %>
+						</th>
+						<th data-field="trainingHeat" data-sortable="true" data-visible="false">
+							<%= __('COL_trainingHeat') %>
+						</th>
+						<th data-field="trainingPercentage" data-sortable="true" data-visible="false">
+							<%= __('COL_trainingPercentage') %>
+						</th>
+						<th data-field="times" data-sortable="true"  data-width="100" data-formatter="formatterMillisecondsArray" data-visible="false">
+							<%= __('COL_partialTimes') %>
+						</th>
+						<th data-field="totalTime" data-formatter="core.formatters.milliseconds" data-sortable="true">
+							<%= __('COL_totalTime') %>
+						</th>
+						<th data-field="speed" data-formatter="core.formatters.speed" data-sortable="true"><%= __('COL_speed') %></th>
+						<th data-field="id" data-formatter="actionFormatter" data-align="center" data-events="actionEvents">
+							<%= __('COL_actions') %>
+						</th>
+					</tr>
+				</thead>
+			</table>
+		</div>
+	</div>
+</div>
+
+<script>
+	function actionFormatter(value, row, index) {
+		return [
+			'<a class="view" href="/management/registry/' + row._id + '" title="">',
+			'<i class="fa fa-eye"></i>',
+			"</a> ",
+			'<%-permissions.includes("D") ? `<a class="delete" href="javascript:void(0)" title=""><i class="fa fa-trash"></i></a>`: ``%>'
+		].join("");
+	}
+	$('#RegistryForm_search_btn').click(() => {
+		values = core.forms.parse('RegistryForm')
+		core.api.find('/api/registry', values, (data) => {
+			$('#table').bootstrapTable('load', data)
+		})
+	})
+</script>
+<% if(locals.permissions.includes('C')) { %>
+<script>
+	$("#RegistryForm_new_btn").click(() => {
+		window.location.href = '/management/registry'
+	})
+</script>
+<% } %>

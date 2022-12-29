@@ -1,0 +1,96 @@
+<link rel="stylesheet" type="text/css" href="/assets/libs/select2/dist/css/select2.min.css" />
+<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<form id="TrainingSessionForm" class="form-horizontal">
+				<div class="card-body">
+					<h4 class="card-title">
+						<%= __('MODEL_TrainingSession') %>
+					</h4>
+					<div class="form-group row">
+						<label for="name" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_name')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="name" name="name" placeholder="" value="<%= locals.object ? object['name'] : '' %>" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="date" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_date')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="date" name="date" date-value="<%= locals.object ? object['date'] : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="race" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_race')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="race" name="race" placeholder="" value="<%= locals.object ? object['race'] : '' %>" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="distance" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_distance')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="number" class="form-control" id="distance" name="distance" placeholder="" value='<%= locals.object ? object['distance'] : '' %>' />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="heats" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_heats')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="number" class="form-control" id="heats" name="heats" placeholder="" value='<%= locals.object ? object['heats'] : '' %>' />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="partialsPerLap" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_partialsPerLap')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="number" class="form-control" id="partialsPerLap" name="partialsPerLap" placeholder="" value='<%= locals.object ? object['partialsPerLap'] : '' %>' />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="skaters" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_skaters')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="skaters" name="skaters" multiple="multiple" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Skater" data-sort="fullname" data-show="fullname" data-filter='{"active" : true}' data-value="<%= locals.object && locals.object.skaters ? object.skaters.map(a=> a._id) : '' %>"></select>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="competition" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_TrainingSession_competition')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="competition" name="competition" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Competition" data-sort="fullname" data-show="fullname" data-value="<%= locals.object && locals.object.competition ? object.competition : '' %>"></select>
+						</div>
+					</div>
+					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
+					<div class="border-top">
+						<div class="card-body" data-type="action-buttons" data-api="/api/TrainingSession" data-form="TrainingSessionForm" data-permissions="<%=locals.permissions.join('')%>" data-savenew-after="clearForm" data-delete="true" data-new="/management/trainingsession" data-list="/management/trainingsession-list" data-search="/management/trainingsession-search">
+							<button id="TrainingSessionForm_registries_btn" type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/trainingsession/${$('#id').val()}/registries`)"><%= __('REGISTRIES') %></button>
+							<button id="TrainingSessionForm_inputs_btn" type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/trainingsession/${$('#id').val()}/inputs`)"><%= __('TRAINING_INPUTS') %></button>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<script>
+	function clearForm() {
+		$('#race').val('')
+	}
+</script>

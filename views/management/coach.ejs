@@ -1,0 +1,78 @@
+<link rel="stylesheet" type="text/css" href="/assets/libs/select2/dist/css/select2.min.css" />
+<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<form id="CoachForm" class="form-horizontal">
+				<div class="card-body">
+					<h4 class="card-title">
+						<%= __('MODEL_Coach') %>
+					</h4>
+					<div class="form-group row">
+						<label for="name" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Coach_name')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="name" name="name" placeholder="" value="<%= locals.object ? object['name'] : '' %>" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="lastname" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Coach_lastname')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="lastname" name="lastname" placeholder="" value="<%= locals.object ? object['lastname'] : '' %>" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="clubs" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Coach_clubs')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="clubs" name="clubs" multiple="multiple" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Club" data-show="name" data-value="<%= locals.object && locals.object.clubs ? object.clubs : '' %>"></select>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="user" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Coach_user')%>
+						</label>
+						<div class="col-sm-9">
+							<select id="user" name="user" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="User" data-show="username" data-value="<%= locals.object && locals.object.user ? object.user._id : '' %>"></select>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="createdAt" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Coach_createdAt')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="createdAt" name="createdAt" disabled date-value="<%= locals.object ? object['createdAt'] : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="updatedAt" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Coach_updatedAt')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="updatedAt" name="updatedAt" disabled date-value="<%= locals.object ? object['updatedAt'] : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
+					<div class="border-top">
+						<div class="card-body" data-type="action-buttons" data-entity="<%=locals.model.modelName%>" data-permissions="<%=locals.permissions.join('')%>" data-new="/<%=locals.view%>">
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

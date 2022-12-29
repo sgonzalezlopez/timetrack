@@ -1,0 +1,125 @@
+<head>
+	<link rel="stylesheet" type="text/css" href="/assets/libs/select2/dist/css/select2.min.css" />
+	<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+	<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+	<style>
+		#map {
+			height: 180px;
+			width: 100%;
+		}
+	</style>
+</head>
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<form id="TrackForm" class="form-horizontal">
+				<div class="card-body">
+					<h4 class="card-title">
+						<%= __('MODEL_Track') %>
+					</h4>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="name" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Track_name')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="text" class="form-control" id="name" name="name" placeholder="" value="<%= locals.object ? object['name'] : '' %>" />
+								</div>
+							</div>
+							<div class="form-group row">
+								<label for="location" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Track_location')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="text" class="form-control" id="location" name="location" placeholder="" value="<%= locals.object ? object['location'] : '' %>" />
+								</div>
+							</div>
+							<div class="form-group row">
+								<label for="distance" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Track_distance')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="text" class="form-control" id="distance" name="distance" placeholder="" value='<%= locals.object ? object['distance'] : '' %>' />
+								</div>
+							</div>
+							<div class="form-group row">
+								<label for="type" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Track_type')%>
+								</label>
+								<div class="col-sm-9">
+									<select id="type" name="type" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="track-type" data-value="<%=locals.object && locals.object.type ? object.type : '' %>"></select> %>
+								</div>
+							</div>
+							<div class="form-group row">
+								<label for="isHeight" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Track_isHeight')%>
+								</label>
+								<div class="col-sm-9">
+									<select id="isHeight" name="isHeight" class="select2 form-select shadow-none" style="width: 100%; height: 36px">
+										<option value=""></option>
+										<option <%=locals.object && object["isHeight"] ? 'selected' : '' %> value="true"><%= __('BOOLEAN_true') %></option>
+										<option <%=locals.object && !object["isHeight"] ? 'selected' : '' %> value="false"><%= __('BOOLEAN_false') %></option>
+										</option>
+									</select>
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+							<div id="map" style="width: 100%; height:400px;"></div>
+						</div>
+					</div>
+					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
+					<input type="hidden" id="lat" name="lat"/>
+					<input type="hidden" id="lng" name="lng"/>
+					<div class="border-top">
+						<div class="card-body" data-type="action-buttons" 
+						data-entity="<%=locals.model.modelName%>" 
+						data-permissions="<%=locals.permissions.join('')%>" 
+						data-new="/<%=locals.view%>"
+						data-save-after="refreshMap" data-update-after="refreshMap"
+						>
+							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/track/${$('#id').val()}/registries`)"><%= __('VIEW_REGISTRIES') %></button>
+							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/track/${$('#id').val()}/competitions`)"><%= __('VIEW_EVENTS') %></button>
+							<button type="button" class="btn btn-dark onlyId" onclick="centerMap()"><%= __('RECENTER_POSITION') %></button>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<script>
+	var map;
+	var marker;
+	var center; 
+
+	function refreshMap(data) {
+		if (!map) map = L.map('map');
+		map.setView([data.geolocation.latitude, data.geolocation.longitude], 13);
+			const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+				maxZoom: 19,
+				attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+			}).addTo(map);
+			if (marker) marker.remove(map)
+			marker = L.marker([data.geolocation.latitude, data.geolocation.longitude], {draggable : true}).addTo(map);
+			marker.on('moveend', function() { marker.setOpacity(0.5)})
+	}
+
+	if ($('#id').val() != '') {
+		core.api.find("/api/track", {
+			_id: $('#id').val()
+		}, function(data) {
+			refreshMap(data[0])
+		})
+	}
+
+	function centerMap() {
+		position = marker.getLatLng();
+		marker.setOpacity(1)
+		console.log(position);
+		$('#lat').val(position.lat)
+		$('#lng').val(position.lng)
+	}
+</script>

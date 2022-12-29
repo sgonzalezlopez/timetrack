@@ -1,0 +1,373 @@
+<link rel="stylesheet" type="text/css" href="/assets/libs/select2/dist/css/select2.min.css" />
+<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<form id="RegistryForm" class="form-horizontal">
+				<div class="card-body">
+					<h4 class="card-title">
+						<%= __('MODEL_Registry') %>
+					</h4>
+					<div class="">
+						<div class="row">
+							<div class="col-sm-6">
+								<div class="form-group row">
+									<label for="date" class="col-sm-3 text-end control-label col-form-label">
+										<%= __('MODEL_Registry_date')%>
+									</label>
+									<div class="col-sm-9">
+										<div class="input-group">
+											<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="date" name="date" date-value="<%= locals.object ? object['date'] : '' %>" />
+											<div class="input-group-append">
+												<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="col-sm-6">
+								<div class="form-group row">
+									<label for="competition" class="col-sm-3 text-end control-label col-form-label">
+										<%= __('MODEL_Registry_competition')%>
+									</label>
+									<div class="col-sm-9">
+										<div class="input-group">
+											<div class="col-10">
+												<select id="competition" name="competition" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Competition" data-sort="fullname" data-show="fullname" data-value="<%= locals.object && locals.object.competition ? object.competition._id : '' %>"></select>
+											</div>
+											<div class="col-2" style="height: 100%">
+												<button type="button" class="btn btn-warning text-white input-group-text input-group-append" data-bs-toggle="modal" data-bs-target="#NewCompetitionModal" style="width: 100%; height: 40px">
+													<%= __('NEW') %>
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="skater" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_skater')%>
+								</label>
+								<div class="col-sm-9">
+									<select id="skater" name="skater" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Skater" data-sort="fullname" data-show="fullname" data-filter='{"active" : true}' data-value="<%= locals.object && locals.object.skater ? object.skater._id : '' %>"></select>
+								</div>
+							</div>
+
+						</div>
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="club" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_club')%>
+								</label>
+								<div class="col-sm-9">
+									<select id="club" name="club" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Club" data-show="name" data-value="<%= locals.object && locals.object.club ? object.club._id : '' %>"></select>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="category" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_category')%>
+								</label>
+								<div class="col-sm-9">
+									<select id="category" name="category" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="categories" data-value="<%=locals.object && locals.object.category ? object.category : '' %>"></select>
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="race" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_race')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="text" class="form-control" id="race" name="race" placeholder="" value="<%= locals.object ? object['race'] : '' %>" />
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="distance" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_distance')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="number" class="form-control" id="distance" name="distance" placeholder="" value='<%= locals.object ? object['distance'] : '' %>' />
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="rail" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_rail')%>
+								</label>
+								<div class="col-sm-9">
+									<select id="rail" name="rail" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="rails" data-value="<%=locals.object && locals.object.rail ? object.rail : '' %>"></select>
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+						</div>
+					</div>
+					<div class="row training-data">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="starting" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_starting')%>
+								</label>
+								<div class="col-sm-9">
+									<select id="starting" name="starting" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="starting" data-value="<%=locals.object && locals.object.starting ? object.starting : '' %>"></select>
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="trainingHeat" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_trainingHeat')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="number" class="form-control" id="trainingHeat" name="trainingHeat" placeholder="" value='<%= locals.object ? object['trainingHeat'] : '' %>' />
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row training-data">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="trainingPercentage" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_trainingPercentage')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="text" class="form-control" id="trainingPercentage" name="trainingPercentage" placeholder="" value='<%= locals.object ? object['trainingPercentage'] : '' %>' />
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="comments" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_comments')%>
+								</label>
+								<div class="col-sm-9">
+									<textarea type="text" class="form-control" id="comments" name="comments" placeholder="" value="<%= locals.object ? object['comments'] : '' %>"></textarea>
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="times" class="col-sm-3 text-end control-label col-form-label">
+									<%= __('MODEL_Registry_totalTime')%>
+								</label>
+								<div class="col-sm-9">
+									<input type="text" class="form-control" id="totalTime" name="totalTime" readonly placeholder="" value="<%= locals.object && locals.object.totalTime ? moment.utc(object.totalTime).format('HH:mm:ss.SSS') : '' %>" />
+								</div>
+							</div>
+						</div>
+					</div>
+					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
+					<div class="border-top">
+						<div class="card-body" 
+						data-type="action-buttons" 
+						data-entity="<%=locals.model.modelName%>" 
+						data-permissions="<%=locals.permissions.join('')%>" 
+						data-save-form-parse="localFormParse"
+						data-savenew-after="clearForm"
+						data-new="/<%=locals.view%>">
+							<button id="RegistryForm_enter_times_btn" type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#TimeEntryModal"><%= __('ENTER_TIMES') %></button>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<div class="modal fade modal-new" id="NewCompetitionModal" tabindex="-1" role="dialog" aria-labelledby="NewCompetitionModal" aria-hidden="true" data-api="/api/competition" data-entity="Competition">
+	<div class="modal-dialog modal-xl" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="NewCompetitionModalLabel"><%= __('CREATE_NEW_EVENT') %></h5>
+				<button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<%- include('./competition.ejs', {formName :'CompetitionForm', api:'/api/competition', object: null, model : {modelName : 'Competition'}}) %>
+			</div>
+			<div class="modal-footer">
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal fade" id="TimeEntryModal" tabindex="-1" role="dialog" aria-labelledby="TimeEntryModal" aria-hidden="true">
+	<div class="modal-dialog modal-xl" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="TimeEntryModalLabel"><%= __('TIME_ENTRY') %></h5>
+				<button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<%- include('./time-entry.ejs', {formName :'TimeEntryForm', api:'', object: null}) %>
+			</div>
+			<div class="modal-footer">
+				<button id="" type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('CLOSE') %></button>
+				<button id="TimeEntryForm_add_time_modal" type="button" class="btn btn-primary"><%= __('ADD_TIME') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+<% if (locals.permissions.includes('U')) { %>
+<script>
+	var readonly = true;
+</script>
+<% } %>
+<script>
+	var competition = null;
+	var registry = null;
+
+	if ($('#id').val() != '') {
+		core.api.getById('/api/registry', $('#id').val(), function(data) {
+			registry = data;
+			competition = registry.competition;
+			refreshView();
+		})
+	}
+
+	function refreshView () {
+		if (competition.training) $('.training-data').show()
+			else $('.training-data').hide()
+	}
+
+	function localFormParse(values) {
+		if (values.skater == '') { 
+			toastr.error('<%= __("SKATER_REQUIRED") %>', core.options.appName)
+			return null;
+		}
+		times = core.forms.parse('TimeEntryForm')
+		values.times = [];
+		for (const key in times) {
+			if (Object.hasOwnProperty.call(times, key)) {
+				if (key.startsWith('lap') && times[key] != '') {
+					values.times[key.replace('lap', '')] = moment.duration(times[key], "HH:mm:ss:SSS")._milliseconds
+				}
+			}
+		}
+		return values;
+	}
+
+	function clearForm() {
+		registry = null;
+		$('.time-container').empty()
+		$('.registry-time-inputmask').each((e, element) => {
+			$(element).val('')
+		})
+		calculateTotal();
+		$('#EntryTotalTime').val('')
+		$('#id').val('')
+		$('#skater').val('').trigger('change')
+	}
+
+	$('#competition').on('change', function() {
+		core.api.getById('/api/competition', $(this).val(), function(data) {
+			competition = data;
+			refreshView()
+		})
+	})
+
+	$('#skater').on('change', function() {
+		core.api.getById('/api/skater', $(this).val(), function(data) {
+			$('#club').val(data && data.currentclub ? data.currentclub._id : '')
+			$('#club').trigger('change')
+			$('#category').val(data && data.currentcategory ? data.currentcategory : '')
+			$('#category').trigger('change')
+		})
+	})
+
+	$('#TimeEntryModal').on('show.bs.modal', function(e) {
+		if (!registry && !competition) {
+			toastr.error('<%= __("SELECT_EVENT") %>', core.options.appName);
+			return e.preventDefault()
+		} else if ($('#distance').val() == '') {
+			toastr.error('<%= __("ENTER_DISTANCE") %>', core.options.appName);
+			return e.preventDefault()
+		}
+
+
+		if (registry != null && registry.times != null && registry.times.length > 0) numLaps = registry.times.length;
+		else if (registry != null && registry.competition != null) numLaps = registry.distance / registry.competition.track.distance;
+		else {
+			distance = parseInt($('#distance').val())
+			lap = competition.track.distance;
+			numLaps = distance / lap;
+		}
+
+		for (let i = 0; i < numLaps; i++) {
+			if (!$(`.time-container #lap${i}`).length) addInput(i);
+		}
+		$('#EntryTotalTime').val(registry && registry.totalTime ? moment.utc(registry.totalTime).format('HH:mm:ss.SSS') : '')
+	})
+
+	$('#TimeEntryForm_add_time_modal').on('click', function() {
+		num = $(`.time-container .registry-time-inputmask`).length || 0;
+		addInput(num);
+	})
+
+	function calculateTotal() {
+		var sum = 0;
+		$("[id^=lap]").each(function() {
+			sum += moment.duration($(this).val(), "HH:mm:ss:SSS")._milliseconds;
+		})
+		$('#EntryTotalTime').val(moment.utc(sum).format('HH:mm:ss.SSS'))
+		$('#totalTime').val(moment.utc(sum).format('HH:mm:ss.SSS'))
+	}
+
+	function addInput(lap) {
+		if (!registry || !registry.times || registry.times.length <= lap || !registry.times[lap]) value = null
+		else value = moment.utc(registry.times[lap]).format('HH:mm:ss.SSS')
+		$('.time-container').append(`
+								<div class="form-group row">
+									<label for="lap${lap}" class="col-sm-3 text-end control-label col-form-label">LAP [${lap}]</label>
+									<div class="col-sm-9 flex">
+										<input type="text" class="form-control registry-time-inputmask" id="lap${lap}" name="lap${lap}" <%=locals.permissions.includes('U') ? "" : "readOnly" %> placeholder="" value='${value}' />
+										<div class="input-group-append">
+                    					<button type="button" class="remove-input input-group-text h-100"><i class="fa-solid fa-trash-can"></i></button>
+                    				</div>
+									</div>
+								</div>`)
+		$('.remove-input').on('click', function() {
+			$(this).closest('.form-group').remove()
+			calculateTotal();
+		})
+		$(`#lap${lap}`).inputmask({
+			mask: "99:99:99.999",
+			jitMasking: true,
+			numericInput: true
+		})
+		$(`#lap${lap}`).on('keyup', function(e) {
+			if (e.keyCode == 13) {
+				e.preventDefault();
+				if ($(`#lap${lap+1}`).length > 0) $(`#lap${lap+1}`).focus();
+				else $('#EntryTotalTime').focus()
+			}
+		})
+		$(`#lap${lap}`).on('focusout', function(e) {
+			$(this).inputmask('setvalue', $(this).inputmask('unmaskedvalue').padStart(9, "0"))
+			calculateTotal();
+		})
+	}
+</script>

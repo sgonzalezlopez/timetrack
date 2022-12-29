@@ -1,6 +1,10 @@
 // Carga de valores de entorno locales.
 require('dotenv').config({ override: true })
 const path = require('path');
+if (typeof __corePath === 'undefined') global.__corePath = path.join(__dirname, './core')
+if (typeof __modulesPath === 'undefined') global.__modulesPath = path.join(__dirname, './node_modules')
+if (typeof __modelsPath === 'undefined') global.__modelsPath = []
+__modelsPath.push(path.join(__dirname, "./models"))
 
 const core = require(path.join(__corePath, '/app'))
 const express = require("express");

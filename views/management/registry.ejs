@@ -107,7 +107,7 @@
 					</div>
 					<div class="row">
 						<div class="col-sm-6">
-							<div class="form-group row">
+							<div class="form-group row training-data">
 								<label for="rail" class="col-sm-3 text-end control-label col-form-label">
 									<%= __('MODEL_Registry_rail')%>
 								</label>
@@ -249,7 +249,7 @@
 	}
 
 	function refreshView () {
-		if (competition.training) $('.training-data').show()
+		if (competition && competition.training) $('.training-data').show()
 			else $('.training-data').hide()
 	}
 

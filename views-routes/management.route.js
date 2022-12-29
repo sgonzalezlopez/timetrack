@@ -1,6 +1,7 @@
-const { getValues } = require('../core/controllers/value.controller');
+const path = require('path');
+const { getValues } = require(path.join(__corePath, '/controllers/value.controller'))
 const express = require('express');
-const actions = require('../core/views-routes/actions')
+const actions = require(path.join(__corePath, '/views-routes/actions'))
 
 const router = express.Router();
 const viewRoute = 'management/';

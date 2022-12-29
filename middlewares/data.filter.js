@@ -1,4 +1,5 @@
-const config = require('../core/config/config')
+const path = require('path');
+const config = require(path.join(__corePath, '/config/config'))
 
 
 exports.getFilter = function (entity, filter, user) {

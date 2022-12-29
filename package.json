@@ -1,0 +1,19 @@
+{
+  "name": "icetime",
+  "version": "1.0.0",
+  "description": "Aplicación de gestión de tiempos",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@tidyjs/tidy": "^2.5.2",
+    "chart.js": "^4.0.1",
+    "i18n-iso-countries": "^7.5.0",
+    "node-geocoder": "^4.2.0",
+    "ol": "^7.1.0",
+    "peity": "^3.3.0"
+  },
+  "author": "",
+  "license": "ISC"
+}

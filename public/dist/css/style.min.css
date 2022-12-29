@@ -36,23 +36,23 @@
   --bs-white: #fff;
   --bs-gray: #6c757d;
   --bs-gray-dark: #343a40;
-  --bs-primary: #9cd1ec;
-  --bs-secondary: #4674a6;
-  --bs-success: #1abd64;
-  --bs-info: #2871f9;
-  --bs-warning: #eed017;
-  --bs-danger: #fe1224;
+  --bs-primary: #7460ee;
+  --bs-secondary: #6c757d;
+  --bs-success: #28b779;
+  --bs-info: #2255a4;
+  --bs-warning: #ffb848;
+  --bs-danger: #da542e;
   --bs-light: #f8f9fa;
-  --bs-dark: #00143b;
+  --bs-dark: #343a40;
   --bs-cyan: #27a9e3;
   --bs-orange: #fb8c00;
   --bs-purple: #7460ee;
-  --bs-font-sans-serif: "Roboto Condensed", sans-serif;
+  --bs-font-sans-serif: "Nunito Sans", sans-serif;
   --bs-font-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --bs-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0));
   --bs-body : #3e5569;
-  --bs-sidebar : #153149;
-  --bs-topbar : #060f16;
+  --bs-sidebar : #1F262D;
+  --bs-topbar : #1F262D;
 }
 
 *,

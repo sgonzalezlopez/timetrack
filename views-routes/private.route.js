@@ -1,6 +1,7 @@
+const path = require('path');
 const express = require('express');
-const actions = require('../core/views-routes/actions')
-const authorization = require('../core/middlewares/authorization')
+const actions = require(path.join(__corePath, '/views-routes/actions'))
+const authorization = require(path.join(__corePath, '/middlewares/authorization'))
 
 const router = express.Router();
 const viewRoute = 'private/';

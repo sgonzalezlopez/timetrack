@@ -1,17 +1,24 @@
 // Carga de valores de entorno locales.
 require('dotenv').config({ override: true })
+const path = require('path');
 
-const core = require("./core/app");
+const core = require(path.join(__corePath, '/app'))
 const express = require("express");
 const fs = require('fs')
-const initialize = require("./core/config/initialize");
-const path = require('path');
-const { config } = require("core/config/config");
-const Users = require('./core/models/user.model')
+const initialize = require(path.join(__corePath, "/config/initialize"));
+const { config } = require(path.join(__corePath, "/config/config"));
+const Users = require(path.join(__corePath, '/models/user.model'))
 const Coach = require('./models/coach.model')
 const Skater = require('./models/skater.model')
 
-async function run() {
+const default_options = {
+  staticPaths : [
+    path.join(__dirname, './public'),
+  ]
+}
+
+module.exports.run = async function run(opts) {
+  var options = {...default_options, ...opts}
   app = await core.setup({deserializeUser : function(id, done) {
     Users.findOne({ _id: id })
       .then(async user => {
@@ -32,24 +39,30 @@ async function run() {
       })
   }})
   
-  core.staticPaths.unshift(path.join(__dirname, './public'))
+  options.staticPaths.forEach(element => {
+    core.staticPaths.unshift(element)    
+  });
 
-  app.use('/country-list', express.static(path.join(__dirname, './node_modules/i18n-iso-countries/langs')));
-  app.use('/ol', express.static(path.join(__dirname, './node_modules/ol')));
-  app.use('/peity', express.static(path.join(__dirname, './node_modules/peity')));
-  app.use('/chart', express.static(path.join(__dirname, './node_modules/chart.js')));
-  app.use('/moment', express.static(path.join(__dirname, './node_modules/moment')));
+  // core.staticPaths.unshift(path.join(__dirname, './public'))
+
+  app.use('/country-list', express.static(path.join(__modulesPath, '/i18n-iso-countries/langs')));
+  app.use('/ol', express.static(path.join(__modulesPath, '/ol')));
+  app.use('/peity', express.static(path.join(__modulesPath, '/peity')));
+  app.use('/chart', express.static(path.join(__modulesPath, '/chart.js')));
+  app.use('/moment', express.static(path.join(__modulesPath, '/moment')));
   app = core.configureStatic(app)
   app.use(function (req, res, next) {
     if (req.originalUrl.split('.').length > 1) {
-      if (!fs.existsSync(path.join(__dirname, './public', req.originalUrl)) || !fs.existsSync(path.join(__dirname, './core/public', req.originalUrl))) {
-        throw new Error('Not found: ' +  req.originalUrl);
+      for (let i = 0; i < options.staticPaths.length; i++) {
+        const element = options.staticPaths[i];
+        if (fs.existsSync(path.join(element, req.originalUrl))) return next();        
       }
+      throw new Error('Not found: ' +  req.originalUrl);
     }
     return next();
   });
 
-  app.set('views', [path.join(__dirname, '/views'), path.join(__dirname, '/core/views')]);
+  app.set('views', [path.join(__dirname, '/views'), path.join(__corePath, '/views')]);
   app.use('/api', require('./api/routes'))
   app.use('/', require('./views-routes/routes'));
   app = core.configureRoutes(app)
@@ -67,5 +80,3 @@ async function run() {
     console.log(`Server is running on port ${PORT}.`);
   });
 }
-
-run()

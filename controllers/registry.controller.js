@@ -1,8 +1,9 @@
+const path = require('path')
 const Model = require("../models/registry.model");
 const filter = require('../middlewares/data.filter')
 const { tidy, groupBy, n, summarize, arrange, fullSeq, complete, min, first } = require('@tidyjs/tidy');
 const countrylist = require('i18n-iso-countries');
-const i18n = require("../core/i18n/i18n.config");
+const i18n = require(path.join(__corePath, "/i18n/i18n.config"));
 
 
 exports.getAll = (req, res) => {

@@ -5,6 +5,8 @@ if (typeof __corePath === 'undefined') global.__corePath = path.join(__dirname, 
 if (typeof __modulesPath === 'undefined') global.__modulesPath = path.join(__dirname, './node_modules')
 if (typeof __modelsPath === 'undefined') global.__modelsPath = []
 __modelsPath.push(path.join(__dirname, "./models"))
+if (typeof __initialization === 'undefined') global.__initialization = []
+__initialization.push(path.join(__dirname, "./config/initialize"))
 
 const core = require(path.join(__corePath, '/app'))
 const express = require("express");

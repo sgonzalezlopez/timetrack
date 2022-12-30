@@ -3,6 +3,7 @@
 	<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
 	<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+	<link href='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css' rel='stylesheet' />
 	<style>
 		#map {
 			height: 180px;
@@ -71,15 +72,10 @@
 						</div>
 					</div>
 					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
-					<input type="hidden" id="lat" name="lat"/>
-					<input type="hidden" id="lng" name="lng"/>
+					<input type="hidden" id="lat" name="lat" />
+					<input type="hidden" id="lng" name="lng" />
 					<div class="border-top">
-						<div class="card-body" data-type="action-buttons" 
-						data-entity="<%=locals.model.modelName%>" 
-						data-permissions="<%=locals.permissions.join('')%>" 
-						data-new="/<%=locals.view%>"
-						data-save-after="refreshMap" data-update-after="refreshMap"
-						>
+						<div class="card-body" data-type="action-buttons" data-entity="<%=locals.model.modelName%>" data-permissions="<%=locals.permissions.join('')%>" data-new="/<%=locals.view%>" data-save-after="refreshMap" data-update-after="refreshMap">
 							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/track/${$('#id').val()}/registries`)"><%= __('VIEW_REGISTRIES') %></button>
 							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/track/${$('#id').val()}/competitions`)"><%= __('VIEW_EVENTS') %></button>
 							<button type="button" class="btn btn-dark onlyId" onclick="centerMap()"><%= __('RECENTER_POSITION') %></button>
@@ -90,21 +86,29 @@
 		</div>
 	</div>
 </div>
+<script src='https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js'></script>
 <script>
 	var map;
 	var marker;
-	var center; 
+	var center;
 
 	function refreshMap(data) {
-		if (!map) map = L.map('map');
+		if (!map) map = L.map('map', {
+			fullscreenControl: true
+		});
 		map.setView([data.geolocation.latitude, data.geolocation.longitude], 13);
-			const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-				maxZoom: 19,
-				attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-			}).addTo(map);
-			if (marker) marker.remove(map)
-			marker = L.marker([data.geolocation.latitude, data.geolocation.longitude], {draggable : true}).addTo(map);
-			marker.on('moveend', function() { marker.setOpacity(0.5)})
+		const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 19,
+			attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+		}).addTo(map);
+		if (marker) marker.remove(map)
+		marker = L.marker([data.geolocation.latitude, data.geolocation.longitude], {
+			draggable: true
+		}).addTo(map);
+		marker.on('moveend', function() {
+			marker.setOpacity(0.5)
+		})
+		$('#location').val(data.location)
 	}
 
 	if ($('#id').val() != '') {

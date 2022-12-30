@@ -46,16 +46,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="border-top">
-					<div class="card-body">
-						<button id="CoachForm_search_btn" type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#searchpanel">
-							<%= __('SEARCH') %>
-						</button>
-						<% if (locals.permissions.includes('C')) { %>
-							<button id="CoachForm_new_btn" type="button" class="btn btn-warning"><%= __('CREATE_NEW') %></button>
-							<% } %>
-					</div>
-				</div>
+				<div data-type="search-buttons" data-api="/api/coach" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="CoachForm"></div>
 			</div>
 		</div>
 	</form>

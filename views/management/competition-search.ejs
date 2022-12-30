@@ -64,16 +64,7 @@
 							<select id="track" name="track" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-collection="Track" data-show="fullname" data-value=""></select> %>
 						</div>
 					</div>
-					<div class="border-top">
-						<div class="card-body">
-							<button id="CompetitionForm_search_btn" type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#searchpanel">
-								<%= __('SEARCH') %>
-							</button>
-							<% if (locals.permissions.includes('C')) { %>
-							<button id="CompetitionForm_new_btn" type="button" class="btn btn-warning"><%= __('CREATE_NEW') %></button>
-							<% } %>
-						</div>
-					</div>
+					<div data-type="search-buttons" data-api="/api/competition" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="CompetitionForm"></div>
 				</div>
 			</div>
 	</form>

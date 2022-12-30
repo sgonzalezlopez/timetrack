@@ -133,18 +133,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="row">
-					<div class="border-top">
-						<div class="card-body">
-							<button id="RegistryForm_search_btn" type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#searchpanel">
-								<%= __('SEARCH') %>
-							</button>
-							<% if (locals.permissions.includes('C')) { %>
-							<button id="RegistryForm_new_btn" type="button" class="btn btn-warning"><%= __('CREATE_NEW') %></button>
-							<% } %>
-						</div>
-					</div>
-				</div>
+				<div data-type="search-buttons" data-api="/api/registry" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="RegistryForm"></div>
 			</div>
 		</div>
 	</form>
@@ -221,17 +210,4 @@
 			'<%-permissions.includes("D") ? `<a class="delete" href="javascript:void(0)" title=""><i class="fa fa-trash"></i></a>`: ``%>'
 		].join("");
 	}
-	$('#RegistryForm_search_btn').click(() => {
-		values = core.forms.parse('RegistryForm')
-		core.api.find('/api/registry', values, (data) => {
-			$('#table').bootstrapTable('load', data)
-		})
-	})
 </script>
-<% if(locals.permissions.includes('C')) { %>
-<script>
-	$("#RegistryForm_new_btn").click(() => {
-		window.location.href = '/management/registry'
-	})
-</script>
-<% } %>

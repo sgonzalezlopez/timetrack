@@ -59,16 +59,7 @@
 									</select>
 						</div>
 					</div>
-				<div class="border-top">
-					<div class="card-body">
-						<button id="TrackForm_search_btn" type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#searchpanel">
-							<%= __('SEARCH') %>
-						</button>
-						<% if (locals.permissions.includes('C')) { %>
-							<button id="TrackForm_new_btn" type="button" class="btn btn-warning"><%= __('CREATE_NEW') %></button>
-							<% } %>
-					</div>
-				</div>
+					<div data-type="search-buttons" data-api="/api/track" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="TrackForm"></div>
 			</div>
 		</div>
 	</form>

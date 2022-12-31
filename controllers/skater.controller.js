@@ -42,7 +42,21 @@ exports.create = (req, res) => {
 
 exports.update = (req, res) => {
     try {
-        Model.findOneAndUpdate(filter.getFilter('Skater', {_id : req.params.id}, req.user), parseBody(req.body))
+        Model.findOneAndUpdate(filter.getFilter('Skater', {_id : req.params.id}, req.user), parseBody(req.body), {new: true})
+        .then(item => {
+            if (item) res.send(item)
+            else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})
+        })
+    } catch (err) {
+        console.error(err);
+        throw err
+    }
+}
+
+exports.updateMany = (req, res) => {
+    try {
+        if (req.body.filter == null || req.body.filter == '' || req.body.filter == {}) return res.status(400).send({message: res.__('ITEM_NOT_FOUND')})
+        Model.updateMany(req.body.filter, parseBody(req.body.update), {new: true})
         .then(item => {
             if (item) res.send(item)
             else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})

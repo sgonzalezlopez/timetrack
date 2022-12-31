@@ -1,10 +1,8 @@
-const Model = require("../models/competition.model");
-const filter = require('../middlewares/data.filter')
+const Model = require("../models/category.model");
 
 exports.getAll = (req, res) => {
     try {
         Model.find()
-        .populate('track')
         .then(items => {
             res.send(items)
         })
@@ -17,7 +15,6 @@ exports.getAll = (req, res) => {
 exports.get = (req, res) => {
     try {
         Model.findById(req.params.id)
-        .populate('track')
         .then(item => {
             res.send(item)
         })
@@ -72,7 +69,6 @@ exports.find = (req, res) => {
             }
         }
         Model.find(req.body)
-        .populate('track')
         .then(items => {
             res.send(items)
         })
@@ -91,29 +87,4 @@ function parseBody(body) {
     }
 
     return values;
-}
-
-exports.getRegistries = (req, res) => {
-    req.body = {competition : req.params.id}
-    require('./registry.controller').find(req, res);
-}
-
-exports.deleteRegistry = (req, res) => {
-    req.params.id = req.params.reg;
-    require('./registry.controller').delete(req, res);
-}
-
-exports.getObject = async function(id, user) {
-    try {
-        return Model.find(filter.getFilter('Competition', {_id : id}, user))
-        .populate('track')
-        .then(item => {
-            if (item.length == 0) return null;
-            return item[0]
-        })
-    } catch (err) {
-        console.error(err);
-        throw err
-    }
-
 }

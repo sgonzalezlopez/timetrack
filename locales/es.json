@@ -197,5 +197,18 @@
   "trainingsession-search": "trainingsession-search",
   "trainingsession-skater-inputs": "Introducción de tiempos",
   "trainingsession-skater-list": "Listado de entrenamientos",
-  "VIEW_SKATERS": "Patinadores"
+  "VIEW_SKATERS": "Patinadores",
+  "UPDATE_CATEGORY" : "Actualizar seleccionados",
+  "Skaters currently on category": "Patinadores actualmente en la categoría",
+	"Skaters on category based on dates": "Patinadores en la categoría en base a la fecha de nacimiento",
+	"NEW_management/category": "Nueva categoría",
+	"LIST_management/category-list": "Listado de categorías",
+	"category": "Categoría",
+	"MODEL_Category": "Categoría",
+	"MODEL_Category_name": "Nombre",
+	"MODEL_Category_from": "Fecha de inicio",
+	"MODEL_Category_to": "Fecha de fin",
+  "COL_from": "Fecha de inicio",
+	"COL_to": "Fecha de fin",
+	"category-list": "Listado de categorías"
 }

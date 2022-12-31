@@ -10,6 +10,7 @@ router.get("/:id/registries", authorization.checkPermision('skater', 'R'), contr
 router.delete("/:id/registries/:reg", authorization.checkPermision('skater', 'R'), authorization.checkPermision('registry', 'D'), controller.deleteRegistry);
 router.get("/:id", authorization.checkPermision('skater', 'R'), controller.get);
 router.post("/find", authorization.checkPermision('skater', 'R'), controller.find);
+router.put("/update", authorization.checkPermision('skater', 'U'), controller.updateMany);
 router.put("/:id", authorization.checkPermision('skater', 'U'), controller.update);
 router.post("/", authorization.checkPermision('skater', 'C'), controller.create);
 router.delete("/:id", authorization.checkPermision('skater', 'D'), controller.delete);

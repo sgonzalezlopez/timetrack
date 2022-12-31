@@ -1,0 +1,68 @@
+<link rel="stylesheet" type="text/css" href="/assets/libs/select2/dist/css/select2.min.css" />
+<link rel="stylesheet" type="text/css" href="/assets/libs/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" />
+<div class="row">
+	<div class="col-md-12">
+		<div class="card">
+			<form id="CategoryForm" class="form-horizontal">
+				<div class="card-body">
+					<h4 class="card-title">
+						<%= __('MODEL_Category') %>
+					</h4>
+					<div class="form-group row">
+						<label for="name" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Category_name')%>
+						</label>
+						<div class="col-sm-9">
+							<input type="text" class="form-control" id="name" name="name" placeholder=""  value="<%= locals.object ? object['name'] : '' %>" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="from" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Category_from')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="from" name="from"  date-value="<%= locals.object ? object['from'] : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="to" class="col-sm-3 text-end control-label col-form-label">
+							<%= __('MODEL_Category_to')%>
+						</label>
+						<div class="col-sm-9">
+							<div class="input-group">
+								<input type="text" class="form-control mydatepicker" placeholder="<%=__('DATE_FORMAT')%>" id="to" name="to"  date-value="<%= locals.object ? object['to'] : '' %>" />
+								<div class="input-group-append">
+									<span class="input-group-text h-100"><i class="mdi mdi-calendar"></i></span>
+								</div>
+							</div>
+						</div>
+					</div>
+					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
+					<div class="border-top">
+						<div class="card-body" data-type="action-buttons" data-entity="<%=locals.model.modelName%>" data-permissions="<%=locals.permissions.join('')%>" data-new="/<%=locals.view%>">
+							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/category/${$('#id').val()}/skaters`)"><%= __('VIEW_SKATERS') %></button>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<script>
+	$('#CategoryForm_submit_btn').click(() => {
+		values = core.forms.parse('CategoryForm')
+		if (values.id) core.api.update('/api/Category', values.id, values, null)
+		else core.api.create('/api/Category', values, null)
+	})
+	$('#CategoryForm_list_btn').click(() => {
+		window.location.replace('/management/category-list')
+	})
+	$('#CategoryForm_search_btn').click(() => {
+		window.location.replace('/management/category-search')
+	})
+</script>

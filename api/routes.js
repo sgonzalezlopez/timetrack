@@ -6,6 +6,7 @@ const authorization = require(path.join(__corePath, '/middlewares/authorization'
 
 
 // Routes
+router.use('/category', require('./category.route'))
 router.use('/trainingsession', require('./trainingsession.route'))
 router.use('/coach', require('./coach.route'))
 router.use('/registry', require('./registry.route'))

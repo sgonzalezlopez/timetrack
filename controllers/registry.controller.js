@@ -52,7 +52,7 @@ exports.create = (req, res) => {
 
 exports.update = (req, res) => {
     try {
-        Model.findOneAndUpdate(filter.getFilter('Registry', { _id: req.params.id }, req.user), parseBody(req.body))
+        Model.findOneAndUpdate(filter.getFilter('Registry', { _id: req.params.id }, req.user), parseBody(req.body), {new: true})
             .then(item => {
                 if (item) res.send(item)
                 else res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })

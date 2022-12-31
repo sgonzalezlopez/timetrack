@@ -48,11 +48,9 @@ exports.update = async (req, res) => {
         if (!olditem) return res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
         var oldLocation = olditem.location;
 
-        Model.findOneAndUpdate({ _id: req.params.id }, parseBody(req.body))
+        Model.findOneAndUpdate({ _id: req.params.id }, parseBody(req.body), { new: true })
             .then(async item => {
                 try {
-
-
                     if (req.body.lat && req.body.lng) {
                         // const resp = await geocoder.reverse({ lat: 45.767, lon: 4.833 });
                         // var location = await geocoder.reverse({ lat : parseFloat(req.body.lat), lon : parseFloat(req.body.lng)})

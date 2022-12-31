@@ -210,5 +210,7 @@
 	"MODEL_Category_to": "Fecha de fin",
   "COL_from": "Fecha de inicio",
 	"COL_to": "Fecha de fin",
-	"category-list": "Listado de categorías"
+	"category-list": "Listado de categorías",
+  "APP_categories": "Categorías",
+  "category-search": "Búsqueda de categorías"
 }

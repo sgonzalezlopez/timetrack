@@ -66,7 +66,7 @@
 							<th data-field="active" data-sortable="true" data-formatter="core.formatters.boolean">
 								<%= __('COL_active') %>
 							</th>
-							<th data-field="id" data-formatter="actionFormatter2" data-align="center" data-events="actionEvents">
+							<th data-field="id" data-formatter="actionFormatter2" data-align="center" data-events="actionEvents2">
 								<%= __('COL_actions') %>
 							</th>
 						</tr>
@@ -83,8 +83,7 @@
 		return [
 			'<a class="view" href="/management/skater/' + row._id + '" title="">',
 			'<i class="fa fa-eye"></i>',
-			"</a> ",
-			'<%-permissions.includes("D") ? `<a class="delete" href="javascript:void(0)" title=""><i class="fa fa-trash"></i></a>`: ``%>'
+			"</a> "
 		].join("");
 	}
 
@@ -133,7 +132,7 @@
 		}
 	}
 
-	window.actionEvents = {
+	window.actionEvents2 = {
 		'click .updateCategory': function(e, value, row, index) {
 			e.stopPropagation()
 			core.api.update('/api/skater', row._id, {

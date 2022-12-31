@@ -361,5 +361,6 @@
   "trainingsession-skater-inputs": "trainingsession-skater-inputs",
   "trainingsession-skater-list": "trainingsession-skater-list",
   "users": "users",
-  "values": "values"
+  "values": "values",
+  "VIEW_SKATERS": "Skaters"
 }

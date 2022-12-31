@@ -65,7 +65,7 @@ exports.delete = (req, res) => {
     }
 }
 
-exports.find = (req, res) => {
+exports.find = (req, res, next) => {
     try {
         for (const key in req.body) {
             if (Object.hasOwnProperty.call(req.body, key)) {
@@ -81,6 +81,11 @@ exports.find = (req, res) => {
         .then(items => {
             res.send(items)
         })
+        .catch(err => {
+            console.error(err);
+            next(err);
+        })
+        
     } catch (err) {
         console.error(err);
         throw err

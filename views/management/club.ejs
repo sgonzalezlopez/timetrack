@@ -53,6 +53,7 @@
 					<input type="hidden" id="id" name="id" value="<%= locals.object ? locals.object.id : ''%>" />
 					<div class="border-top">
 						<div class="card-body" data-type="action-buttons" data-entity="<%=locals.model.modelName%>" data-permissions="<%=locals.permissions.join('')%>" data-new="/<%=locals.view%>">
+							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/club/${$('#id').val()}/skaters`)"><%= __('VIEW_SKATERS') %></button>
 						</div>
 					</div>
 				</div>

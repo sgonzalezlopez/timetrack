@@ -362,5 +362,17 @@
   "trainingsession-skater-list": "trainingsession-skater-list",
   "users": "users",
   "values": "values",
-  "VIEW_SKATERS": "Skaters"
+  "VIEW_SKATERS": "Skaters",
+  "MODEL_Category_name": "MODEL_Category_name",
+	"MODEL_Category_from": "MODEL_Category_from",
+	"MODEL_Category_to": "MODEL_Category_to",
+	"COL_from": "COL_from",
+	"COL_to": "COL_to",
+	"NEW_management/category": "NEW_management/category",
+	"LIST_management/category-list": "LIST_management/category-list",
+	"APP_categories": "APP_categories",
+	"category-search": "category-search",
+	"MODEL_Category": "MODEL_Category",
+	"category": "category",
+	"category-list": "category-list"
 }

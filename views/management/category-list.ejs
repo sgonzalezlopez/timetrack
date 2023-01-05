@@ -6,13 +6,13 @@
 			<table id="table" data-toggle="table" data-url="/api/category" class="table table-striped table-bordered clickable" detail-url="/management/category/">
 				<thead>
 					<tr>
-						<th data-field="name">
+						<th data-field="name" data-sortable="true">
 							<%= __('COL_name') %>
 						</th>
-						<th data-field="from" data-formatter="core.formatters.date">
+						<th data-field="from" data-formatter="core.formatters.date" data-sortable="true">
 							<%= __('COL_from') %>
 						</th>
-						<th data-field="to" data-formatter="core.formatters.date">
+						<th data-field="to" data-formatter="core.formatters.date" data-sortable="true">
 							<%= __('COL_to') %>
 						</th>
 						<th data-field="id" data-formatter="actionFormatter" data-align="center" data-events="actionEvents">

@@ -204,6 +204,7 @@
 						<th data-field="totalTime" data-formatter="core.formatters.milliseconds" data-sortable="true">
 							<%= __('COL_totalTime') %>
 						</th>
+						<th data-field="speed" data-formatter="speedFormatter" data-sortable="true"><%= __('COL_speed') %></th>
 						<% if (locals.user.roles.includes('admin') || locals.user.roles.includes('coach')) {%>
 						<th data-field="id" data-formatter="actionFormatter" data-align="center" data-events="actionEvents">
 							<%= __('COL_actions') %>
@@ -262,4 +263,8 @@
 	function groupFormatter(value, index, data) {
 		return `<span class="group-row">${value}</span>`
 	}
+
+	function speedFormatter (value, row, index) {
+		return Math.round(row.distance*3600/row.totalTime*100)/100 + " km/h"
+   }
 </script>

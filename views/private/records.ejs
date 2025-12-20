@@ -258,6 +258,17 @@
 		})
 		$('#country').val($('#country').attr('data-value'))
 		$('#country').trigger('change')
+
+          // Click on row → to the correct record
+        $('#table').on('click-row.bs.table', function (e, row, $element) {
+
+          // Prevent conflict with "+", links and buttons
+        if ($(e.target).closest('.detail-icon, .view, a, button').length) return
+
+            window.location.href = '/management/registry/' + row._id
+        })
+
+		
 	})
 
 	function groupFormatter(value, index, data) {

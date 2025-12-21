@@ -7,34 +7,41 @@ function showDetail(index) {
 }
 
 function registryDetailFormatter(index, row) {
-   var html = `<div class="registryDetail">`;
-   html += `<div class="col-12">`
+   let html = `<div class="registryDetail">`;
+   html += `<div class="col-12">`;
+
    if (row.times) {
-      row.times.forEach((element, index) => {
-         html += `<div class="row">`
-         html += `<div class="col-1">`
-         html += `<div class="lap-label">LAP[${index}]</div>`
-         html += `</div>`
-         html += `<div class="col-11">`
-         html += `<div class="lap-time">${row.times[index] != null ? moment.utc(row.times[index]).format('HH:mm:ss.SSS') : '-'}</div>`
-         html += `</div>`
-         html += `</div>`
+      row.times.forEach((time, lapIndex) => {
+         html += `
+           <div class="row">
+             <div class="col-1">
+               <div class="lap-label">LAP[${lapIndex}]</div>
+             </div>
+             <div class="col-11">
+               <div class="lap-time">
+                 ${time != null ? moment.utc(time).format('HH:mm:ss.SSS') : '-'}
+               </div>
+             </div>
+           </div>`;
       });
    }
 
-   html += `<div class="row">`
-   html += `<div class="col-1">`
-   html += `<div class="total-label">Total</div>`
-   html += `</div>`
-   html += `<div class="col-11">`
-   html += `<div class="total-time">${moment.utc(row.totalTime).format('HH:mm:ss.SSS')}</div>`
-   html += `</div>`
-   html += `</div>`
-   html += `</div>`
+   html += `
+     <div class="row">
+       <div class="col-1">
+         <div class="total-label">Total</div>
+       </div>
+       <div class="col-11">
+         <div class="total-time">
+           ${moment.utc(row.totalTime).format('HH:mm:ss.SSS')}
+         </div>
+       </div>
+     </div>
+   </div></div>`;
 
-   html += `</div>`
-   return html
+   return html;
 }
+
 
 
 function registryInputFormatter(index, row) {

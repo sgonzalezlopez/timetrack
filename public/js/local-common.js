@@ -7,43 +7,46 @@ function showDetail(index) {
 }
 
 function registryDetailFormatter(index, row) {
-    let html = `<div class="registryDetail"><div class="col-12">`;
+   // CLONAR el row para evitar referencias compartidas
+   const data = JSON.parse(JSON.stringify(row));
 
-    if (Array.isArray(row.times)) {
-        row.times.forEach((time, lapIndex) => {
-            html += `
-                <div class="row">
-                    <div class="col-1">
-                        <div class="lap-label">LAP[${lapIndex}]</div>
-                    </div>
-                    <div class="col-11">
-                        <div class="lap-time">
-                            ${time != null
-                                ? moment.utc(time).format('HH:mm:ss.SSS')
-                                : '-'}
-                        </div>
-                    </div>
-                </div>`;
-        });
-    }
+   let html = `<div class="registryDetail">`;
+   html += `<div class="col-12">`;
 
-    html += `
+   if (Array.isArray(data.times)) {
+      data.times.forEach((time, lapIndex) => {
+         html += `
+           <div class="row">
+             <div class="col-1">
+               <div class="lap-label">LAP[${lapIndex}]</div>
+             </div>
+             <div class="col-11">
+               <div class="lap-time">
+                 ${time != null ? moment.utc(time).format('HH:mm:ss.SSS') : '-'}
+               </div>
+             </div>
+           </div>`;
+      });
+   }
+
+   if (data.totalTime != null) {
+      html += `
         <div class="row">
-            <div class="col-1">
-                <div class="total-label">Total</div>
+          <div class="col-1">
+            <div class="total-label">Total</div>
+          </div>
+          <div class="col-11">
+            <div class="total-time">
+              ${moment.utc(data.totalTime).format('HH:mm:ss.SSS')}
             </div>
-            <div class="col-11">
-                <div class="total-time">
-                    ${row.totalTime != null
-                        ? moment.utc(row.totalTime).format('HH:mm:ss.SSS')
-                        : '-'}
-                </div>
-            </div>
-        </div>
-    </div></div>`;
+          </div>
+        </div>`;
+   }
 
-    return html;
+   html += `</div></div>`;
+   return html;
 }
+
 
 
 

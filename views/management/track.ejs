@@ -92,32 +92,47 @@
 	var marker;
 	var center;
 
-	function refreshMap(data) {
-		if (!map) map = L.map('map', {
-			fullscreenControl: true
-		});
-		map.setView([data.geolocation.latitude, data.geolocation.longitude], 13);
-		const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			maxZoom: 19,
-			attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-		}).addTo(map);
-		if (marker) marker.remove(map)
-		marker = L.marker([data.geolocation.latitude, data.geolocation.longitude], {
-			draggable: true
-		}).addTo(map);
-		marker.on('moveend', function() {
-			marker.setOpacity(0.5)
-		})
-		$('#location').val(data.location)
+function refreshMap(data) {
+	if (!data || !data.geolocation ||
+	    data.geolocation.latitude == null ||
+	    data.geolocation.longitude == null) {
+		// No hay datos de mapa → no hacemos nada
+		return;
 	}
 
-	if ($('#id').val() != '') {
-		core.api.find("/api/track", {
-			_id: $('#id').val()
-		}, function(data) {
-			refreshMap(data[0])
-		})
+	if (!map) {
+		map = L.map('map', {
+			fullscreenControl: true
+		});
 	}
+
+	map.setView(
+		[data.geolocation.latitude, data.geolocation.longitude],
+		13
+	);
+
+	L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+	}).addTo(map);
+
+	if (marker) {
+		marker.remove();
+	}
+
+	marker = L.marker(
+		[data.geolocation.latitude, data.geolocation.longitude],
+		{ draggable: true }
+	).addTo(map);
+
+	marker.on('moveend', function () {
+		marker.setOpacity(0.5);
+	});
+
+	$('#location').val(data.location || '');
+}
+
+
 
 	function centerMap() {
 		position = marker.getLatLng();

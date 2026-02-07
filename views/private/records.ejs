@@ -174,9 +174,6 @@
 						<th data-field="skater.gender" data-sortable="true data-visible="false" data-visible="false">
 							<%= __('COL_gender') %>
 						</th>
-						<th data-field="competition.fullname" data-sortable="true">
-							<%= __('COL_competition') %>
-						</th>
 						<th data-field="competition.track.fullname" data-sortable="true" data-visible="false">
 							<%= __('COL_track') %>
 						</th>
@@ -203,6 +200,9 @@
 						</th>
 						<th data-field="totalTime" data-formatter="core.formatters.milliseconds" data-sortable="true">
 							<%= __('COL_totalTime') %>
+						</th>
+						<th data-field="competition.fullname" data-sortable="true">
+							<%= __('COL_competition') %>
 						</th>
 						<th data-field="speed" data-formatter="speedFormatter" data-sortable="true"><%= __('COL_speed') %></th>
 						<% if (locals.user.roles.includes('admin') || locals.user.roles.includes('coach')) {%>

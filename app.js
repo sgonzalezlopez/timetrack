@@ -58,12 +58,15 @@ module.exports.run = async function run(opts) {
   app.use('/moment', express.static(path.join(__modulesPath, '/moment')));
   app = core.configureStatic(app)
   app.use(function (req, res, next) {
-    if (req.originalUrl.split('.').length > 1) {
+    const requestPath = req.path || req.originalUrl;
+    const staticRelativePath = requestPath.replace(/^\/+/, '');
+
+    if (requestPath.split('.').length > 1) {
       for (let i = 0; i < options.staticPaths.length; i++) {
         const element = options.staticPaths[i];
-        if (fs.existsSync(path.join(element, req.originalUrl))) return next();        
+        if (fs.existsSync(path.join(element, staticRelativePath))) return next();        
       }
-      throw new Error('Not found: ' +  req.originalUrl);
+      throw new Error('Not found: ' +  requestPath);
     }
     return next();
   });

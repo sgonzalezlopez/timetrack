@@ -8,7 +8,6 @@
 					<h4 class="card-title">
 						<%= __('MODEL_Registry') %>
 					</h4>
-					<div id="registry-context-alert" class="alert alert-info" style="display:none"></div>
 					<div class="">
 						<div class="row">
 							<div class="col-sm-6">
@@ -242,7 +241,6 @@
 	var registry = null;
 	var presetCompetition = null;
 	var presetDate = null;
-	var registryFromEventLabel = '<%= __("REGISTRY_FROM_EVENT") === "REGISTRY_FROM_EVENT" ? "Registro creado desde el evento" : __("REGISTRY_FROM_EVENT") %>';
 
 	function applyPrefillFromQuery() {
 		if ($('#id').val() != '') return;
@@ -263,26 +261,11 @@
 			$('#date').val(formattedDate);
 		}
 
-		if (presetCompetition) refreshRegistryContextAlert();
-
 		if (presetCompetition) {
 			window.setTimeout(function() {
 				$('#competition').val(presetCompetition).trigger('change');
 			}, 300);
 		}
-	}
-
-	function refreshRegistryContextAlert() {
-		var selectedCompetition = $('#competition').val();
-		if (!presetCompetition || (selectedCompetition && selectedCompetition !== presetCompetition)) {
-			$('#registry-context-alert').hide();
-			return;
-		}
-
-		var parts = [];
-		if (competition && competition.fullname) parts.push(competition.fullname);
-
-		$('#registry-context-alert').html('<strong>' + registryFromEventLabel + '</strong>' + (parts.length ? ': ' + parts.join(' | ') : '')).show();
 	}
 
 	applyPrefillFromQuery();
@@ -292,14 +275,12 @@
 			registry = data;
 			competition = registry.competition;
 			refreshView();
-			refreshRegistryContextAlert();
 		})
 	}
 
 	function refreshView () {
 		if (competition && competition.training) $('.training-data').show()
 			else $('.training-data').hide()
-		refreshRegistryContextAlert();
 	}
 
 	function localFormParse(values) {

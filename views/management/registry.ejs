@@ -242,6 +242,7 @@
 	var registry = null;
 	var presetCompetition = null;
 	var presetDate = null;
+	var registryFromEventLabel = '<%= __("REGISTRY_FROM_EVENT") === "REGISTRY_FROM_EVENT" ? "Registro creado desde el evento" : __("REGISTRY_FROM_EVENT") %>';
 
 	function applyPrefillFromQuery() {
 		if ($('#id').val() != '') return;
@@ -272,12 +273,16 @@
 	}
 
 	function refreshRegistryContextAlert() {
-		if (!presetCompetition) return;
+		var selectedCompetition = $('#competition').val();
+		if (!presetCompetition || (selectedCompetition && selectedCompetition !== presetCompetition)) {
+			$('#registry-context-alert').hide();
+			return;
+		}
 
 		var parts = [];
 		if (competition && competition.fullname) parts.push(competition.fullname);
 
-		$('#registry-context-alert').html('<strong><%= __("REGISTRY_FROM_EVENT") %></strong>' + (parts.length ? ': ' + parts.join(' | ') : '')).show();
+		$('#registry-context-alert').html('<strong>' + registryFromEventLabel + '</strong>' + (parts.length ? ': ' + parts.join(' | ') : '')).show();
 	}
 
 	applyPrefillFromQuery();
@@ -327,7 +332,14 @@
 	}
 
 	$('#competition').on('change', function() {
-		core.api.getById('/api/competition', $(this).val(), function(data) {
+		var competitionId = $(this).val();
+		if (!competitionId || competitionId === 'null' || competitionId === 'undefined') {
+			competition = null;
+			refreshView();
+			return;
+		}
+
+		core.api.getById('/api/competition', competitionId, function(data) {
 			competition = data;
 			refreshView()
 		})

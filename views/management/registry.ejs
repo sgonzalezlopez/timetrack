@@ -8,6 +8,7 @@
 					<h4 class="card-title">
 						<%= __('MODEL_Registry') %>
 					</h4>
+					<div id="registry-context-alert" class="alert alert-info" style="display:none"></div>
 					<div class="">
 						<div class="row">
 							<div class="col-sm-6">
@@ -239,18 +240,61 @@
 <script>
 	var competition = null;
 	var registry = null;
+	var presetCompetition = null;
+	var presetDate = null;
+
+	function applyPrefillFromQuery() {
+		if ($('#id').val() != '') return;
+
+		const params = new URLSearchParams(window.location.search);
+		const competitionId = params.get('competition');
+		const registryDate = params.get('date');
+
+		if (competitionId && !$('#competition').val()) {
+			presetCompetition = competitionId;
+			$('#competition').attr('data-value', competitionId);
+		}
+
+		if (registryDate && !$('#date').val()) {
+			presetDate = registryDate;
+			const formattedDate = moment.utc(registryDate).isValid() ? moment.utc(registryDate).format('L') : registryDate;
+			$('#date').attr('date-value', registryDate);
+			$('#date').val(formattedDate);
+		}
+
+		if (presetCompetition) refreshRegistryContextAlert();
+
+		if (presetCompetition) {
+			window.setTimeout(function() {
+				$('#competition').val(presetCompetition).trigger('change');
+			}, 300);
+		}
+	}
+
+	function refreshRegistryContextAlert() {
+		if (!presetCompetition) return;
+
+		var parts = [];
+		if (competition && competition.fullname) parts.push(competition.fullname);
+
+		$('#registry-context-alert').html('<strong><%= __("REGISTRY_FROM_EVENT") %></strong>' + (parts.length ? ': ' + parts.join(' | ') : '')).show();
+	}
+
+	applyPrefillFromQuery();
 
 	if ($('#id').val() != '') {
 		core.api.getById('/api/registry', $('#id').val(), function(data) {
 			registry = data;
 			competition = registry.competition;
 			refreshView();
+			refreshRegistryContextAlert();
 		})
 	}
 
 	function refreshView () {
 		if (competition && competition.training) $('.training-data').show()
 			else $('.training-data').hide()
+		refreshRegistryContextAlert();
 	}
 
 	function localFormParse(values) {

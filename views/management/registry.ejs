@@ -241,6 +241,27 @@
 	var registry = null;
 	var presetCompetition = null;
 	var presetDate = null;
+	var openingTimeEntryModal = false;
+
+	function loadCompetition(competitionId, callback) {
+		if (!competitionId || competitionId === 'null' || competitionId === 'undefined') {
+			competition = null;
+			refreshView();
+			if (callback) callback(null);
+			return;
+		}
+
+		if (competition && competition._id == competitionId) {
+			if (callback) callback(competition);
+			return;
+		}
+
+		core.api.getById('/api/competition', competitionId, function(data) {
+			competition = data || null;
+			refreshView();
+			if (callback) callback(competition);
+		})
+	}
 
 	function applyPrefillFromQuery() {
 		if ($('#id').val() != '') return;
@@ -264,6 +285,7 @@
 		if (presetCompetition) {
 			window.setTimeout(function() {
 				$('#competition').val(presetCompetition).trigger('change');
+				loadCompetition(presetCompetition);
 			}, 300);
 		}
 	}
@@ -314,16 +336,7 @@
 
 	$('#competition').on('change', function() {
 		var competitionId = $(this).val();
-		if (!competitionId || competitionId === 'null' || competitionId === 'undefined') {
-			competition = null;
-			refreshView();
-			return;
-		}
-
-		core.api.getById('/api/competition', competitionId, function(data) {
-			competition = data;
-			refreshView()
-		})
+		loadCompetition(competitionId)
 	})
 
 	$('#skater').on('change', function() {
@@ -336,6 +349,22 @@
 	})
 
 	$('#TimeEntryModal').on('show.bs.modal', function(e) {
+		const selectedCompetitionId = $('#competition').val();
+
+		if (!registry && !competition && selectedCompetitionId && !openingTimeEntryModal) {
+			e.preventDefault()
+			openingTimeEntryModal = true;
+			loadCompetition(selectedCompetitionId, function(data) {
+				openingTimeEntryModal = false;
+				if (!data) {
+					toastr.error('<%= __("SELECT_EVENT") %>', core.options.appName);
+					return;
+				}
+				$('#TimeEntryModal').modal('show');
+			})
+			return;
+		}
+
 		if (!registry && !competition) {
 			toastr.error('<%= __("SELECT_EVENT") %>', core.options.appName);
 			return e.preventDefault()

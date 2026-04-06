@@ -144,10 +144,27 @@
 <script>
 	var charts = new StatCharts()
 	$("#skater").on("change", function() {
-		core.api.find("/api/registry/stats/summary", {
-			skater: $('#skater').val()
-		}, function(response) {
-			charts.refreshData(response, $('#skater').val())
+		$.ajax({
+			type: 'POST',
+			url: '/api/registry/stats/summary',
+			data: {
+				skater: $('#skater').val()
+			},
+			dataType: 'json',
+			success: function(response) {
+				charts.refreshData(response, $('#skater').val())
+			},
+			error: function(error) {
+				console.error(error)
+				charts.refreshData({
+					totalRecords: 0,
+					groupedByYear: [],
+					groupedByCategory: [],
+					groupedByClub: [],
+					races: [],
+					bestByRace: []
+				}, $('#skater').val())
+			}
 		})
 	})
 

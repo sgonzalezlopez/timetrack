@@ -49,10 +49,20 @@ class StatCharts {
       }
 
       this.activeRaceRequest = `${this.currentSkater}:${race}`
-      core.api.find('/api/registry/stats/race', { skater: this.currentSkater, race }, data => {
-         if (this.activeRaceRequest !== `${this.currentSkater}:${race}`) return
-         this.raceCache.set(race, data)
-         this.renderRace(data)
+      $.ajax({
+         type: 'POST',
+         url: '/api/registry/stats/race',
+         data: { skater: this.currentSkater, race },
+         dataType: 'json',
+         success: data => {
+            if (this.activeRaceRequest !== `${this.currentSkater}:${race}`) return
+            this.raceCache.set(race, data)
+            this.renderRace(data)
+         },
+         error: error => {
+            console.error(error)
+            this.clearRaceView()
+         }
       })
    }
 

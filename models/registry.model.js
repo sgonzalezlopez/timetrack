@@ -71,6 +71,11 @@ RegistrySchema.virtual('totalTime').get(function () {
     else return this.times.reduce((partial, e) => partial + e, 0);
 });
 
+RegistrySchema.index({ skater: 1, race: 1, date: 1 });
+RegistrySchema.index({ skater: 1, date: 1 });
+RegistrySchema.index({ competition: 1 });
+RegistrySchema.index({ club: 1 });
+
 // exporting module to allow it to be imported in other files
 module.exports = mongoose.model('Registry', RegistrySchema);
 

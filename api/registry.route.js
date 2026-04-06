@@ -7,6 +7,8 @@ const authorization = require(path.join(__corePath, '/middlewares/authorization'
 
 router.get("/", authorization.checkPermision('registry', 'R'), controller.getAll);
 router.get("/:id", authorization.checkPermision('registry', 'R'), controller.get);
+router.post("/stats/summary", authorization.checkPermision('registry', 'R'), controller.getStatsSummary);
+router.post("/stats/race", authorization.checkPermision('registry', 'R'), controller.getStatsRace);
 router.post("/records/find", authorization.checkPermision('registry', 'R'), controller.findRecords);
 router.post("/find", authorization.checkPermision('registry', 'R'), controller.find);
 router.put("/:id", authorization.checkPermision('registry', 'U'), controller.update);

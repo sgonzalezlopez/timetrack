@@ -139,18 +139,15 @@
 <!-- <script src="/assets/libs/chart/jquery.peity.min.js"></script> -->
 <script src="/chart/dist/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-<script src="https://d3js.org/d3-array.v2.min.js"></script>
-<script src="https://www.unpkg.com/@tidyjs/tidy/dist/umd/tidy.min.js"></script>
 <script src="/peity/jquery.peity.js"></script>
 <script src="/js/stats-charts.js"></script>
 <script>
-	var charts = new StatCharts(null)
+	var charts = new StatCharts()
 	$("#skater").on("change", function() {
-		core.api.find("/api/registry", {
+		core.api.find("/api/registry/stats/summary", {
 			skater: $('#skater').val()
 		}, function(response) {
-			data = response
-			charts.refreshData(data)
+			charts.refreshData(response, $('#skater').val())
 		})
 	})
 

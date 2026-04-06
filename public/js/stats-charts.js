@@ -1,101 +1,66 @@
-const { tidy, groupBy, n, summarize, arrange, fullSeq, complete, min, first } = Tidy;
-
 class StatCharts {
-
-   data = null;
 
    groupedByYear;
    groupedByCategory;
    groupedByClub;
-   groupedByRace;
    bestByRace;
+   totalRecords = 0;
+   races = [];
+   currentSkater = null;
+   raceCache = new Map();
+   activeRaceRequest = null;
 
    constructor() {
    }
 
 
-   refreshData(input) {
-      this.data = input;
-      this.prepareData()
+   refreshData(input, skaterId) {
+      this.currentSkater = skaterId || null
+      this.groupedByYear = input.groupedByYear || []
+      this.groupedByCategory = input.groupedByCategory || []
+      this.groupedByClub = input.groupedByClub || []
+      this.bestByRace = input.bestByRace || []
+      this.races = input.races || []
+      this.totalRecords = input.totalRecords || 0
+      this.raceCache = new Map()
+      this.activeRaceRequest = null
+
       this.refreshHeader()
       this.refreshYear()
       this.refreshCategory()
       this.refreshClub()
       this.refreshSummary()
 
-      $('#race').empty()
-      $('#race').append(`<option value='' selected></option>`)
-      this.groupedByRace.forEach(element => {
-         $('#race').append(`<option value='${element[0]}'>${element[0]}</option>`)
-      });
-      $('#race-table').bootstrapTable('load', [])
-      $('#num-records-race').text('--')
-
-      Chart.getChart("race-evolution").destroy()
+      this.refreshRaceOptions()
+      this.clearRaceView()
    }
 
    updateRace() {
-      var d = this.groupedByRace.filter(r => r[0] == $('#race').val())[0][1]
-
-      $('#num-records-race').text(d.length)
-      $('#race-table').bootstrapTable('load', d)
-
-      this.refreshRaceEvolution($('#race').val())
-   }
-
-   prepareData() {
-      this.data.map(m => {
-         m.clubName = m.club.name
-         m.year = new Date(m.date).getFullYear()
+      const race = $('#race').val()
+      if (!race || !this.currentSkater) {
+         this.clearRaceView()
+         return
       }
-      )
 
-      this.groupedByYear = tidy(
-         this.data,
-         groupBy('year', [summarize({
-            num: n()
-         })]),
-         arrange('year')
-      )
+      const cachedData = this.raceCache.get(race)
+      if (cachedData) {
+         this.renderRace(cachedData)
+         return
+      }
 
-      if (this.groupedByYear.filter(e => e.year == new Date().getFullYear()).length == 0) this.groupedByYear.push({ year: new Date().getFullYear(), num: 0 })
-
-      this.groupedByYear = tidy(
-         this.groupedByYear,
-         complete({ 'year': fullSeq('year') }, { num: 0 })
-      )
-
-      this.groupedByCategory = tidy(
-         this.data,
-         groupBy('category', [summarize({
-            num: n()
-         })])
-      )
-
-      this.groupedByClub = tidy(
-         this.data,
-         groupBy('clubName', [summarize({
-            num: n()
-         })])
-      )
-
-      this.groupedByRace = tidy(
-         this.data,
-         arrange('time'),
-         groupBy(['race'], [], groupBy.entries())
-      )
-
-      this.bestByRace = this.groupedByRace.map(e => {
-         var a = e[1].sort((a, b) => a.totalTime - b.totalTime)
-         return a[0]
+      this.activeRaceRequest = `${this.currentSkater}:${race}`
+      core.api.find('/api/registry/stats/race', { skater: this.currentSkater, race }, data => {
+         if (this.activeRaceRequest !== `${this.currentSkater}:${race}`) return
+         this.raceCache.set(race, data)
+         this.renderRace(data)
       })
-
    }
 
 
    refreshHeader() {
-      $('#num-records').text(this.data.length)
-      var lbl = this.groupedByYear[0].year + "-" + new Date().getFullYear()
+      $('#num-records').text(this.totalRecords)
+      const firstYear = this.groupedByYear.length > 0 ? this.groupedByYear[0].year : new Date().getFullYear()
+      var lbl = firstYear + "-" + new Date().getFullYear()
       $('#num-kpi').text(this.groupedByYear.map(r => r.num).join(','))
       $('#num-kpi').peity('bar')
       $('#lbl-kpi').text(lbl)
@@ -196,8 +161,9 @@ class StatCharts {
       const chart = Chart.getChart("race-evolution");
       if (chart) chart.destroy()
 
-      var evol = this.groupedByRace.filter(v => v[0] == value)[0][1]
-      evol = evol.sort((a, b) => { return new Date(a.date) - new Date(b.date) })
+      if (!value || value.length === 0) return
+
+      var evol = [...value].sort((a, b) => { return new Date(a.date) - new Date(b.date) })
       var d = evol.map(r => [new Date(moment.utc(r.date).format('L')), r.totalTime])
 
       new Chart(document.getElementById('race-evolution'), {
@@ -260,5 +226,27 @@ class StatCharts {
 
    refreshSummary() {
       $('#summary_table').bootstrapTable('load', this.bestByRace)
+   }
+
+   refreshRaceOptions() {
+      const options = [`<option value='' selected></option>`]
+      this.races.forEach(race => {
+         options.push(`<option value='${race}'>${race}</option>`)
+      })
+      $('#race').html(options.join(''))
+      $('#race').trigger('change.select2')
+   }
+
+   clearRaceView() {
+      $('#race-table').bootstrapTable('load', [])
+      $('#num-records-race').text('--')
+      const chart = Chart.getChart("race-evolution")
+      if (chart) chart.destroy()
+   }
+
+   renderRace(data) {
+      $('#num-records-race').text(data.length)
+      $('#race-table').bootstrapTable('load', data)
+      this.refreshRaceEvolution(data)
    }
 }

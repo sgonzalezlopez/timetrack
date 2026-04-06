@@ -170,6 +170,66 @@ exports.findRecords = (req, res) => {
     }
 }
 
+exports.getStatsSummary = async (req, res) => {
+    try {
+        sanitizeBody(req.body)
+
+        if (!req.body.skater) {
+            return res.send(getEmptyStatsSummary())
+        }
+
+        const competitionPopulate = getCompetitionPopulate(req.body)
+        const registries = await Model.find(filter.getFilter('Registry', parseBody({ skater: req.body.skater }), req.user))
+            .select('date category race distance times club competition')
+            .populate({ path: 'club', select: 'name' })
+            .populate(competitionPopulate)
+            .sort({ date: 1, race: 1 })
+            .lean()
+
+        const items = normalizeStatsRegistries(filterStatsRegistries(registries))
+        const groupedByYear = completeYearRange(groupCount(items, 'year', 'year'))
+        const groupedByCategory = groupCount(items, 'category', 'category')
+        const groupedByClub = groupCount(items, 'clubName', 'clubName')
+        const races = [...new Set(items.map(item => item.race).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'))
+        const bestByRace = getBestByRace(items)
+
+        res.send({
+            totalRecords: items.length,
+            groupedByYear,
+            groupedByCategory,
+            groupedByClub,
+            races,
+            bestByRace
+        })
+    } catch (err) {
+        console.error(err)
+        res.status(500).send(err)
+    }
+}
+
+exports.getStatsRace = async (req, res) => {
+    try {
+        sanitizeBody(req.body)
+
+        if (!req.body.skater || !req.body.race) {
+            return res.send([])
+        }
+
+        const competitionPopulate = getCompetitionPopulate(req.body)
+        const registries = await Model.find(filter.getFilter('Registry', parseBody({ skater: req.body.skater, race: req.body.race }), req.user))
+            .select('date category race distance times competition')
+            .populate(competitionPopulate)
+            .sort({ date: 1 })
+            .lean()
+
+        const items = normalizeStatsRegistries(filterStatsRegistries(registries))
+        res.send(items.sort((a, b) => new Date(a.date) - new Date(b.date)))
+    } catch (err) {
+        console.error(err)
+        res.status(500).send(err)
+    }
+}
+
 
 function getBestRecords(data, ntop, bestForSkater) {
     result = [];
@@ -197,6 +257,95 @@ function getBestRecords(data, ntop, bestForSkater) {
         })
     }
     return result
+}
+
+function sanitizeBody(body) {
+    for (const key in body) {
+        if (Object.hasOwnProperty.call(body, key) && body[key] == '') {
+            delete body[key]
+        }
+    }
+}
+
+function getCompetitionPopulate(body) {
+    var competitionPopulate = { path: 'competition', select: 'fullname season training track', populate: { path: 'track', select: 'name' } }
+    competitionPopulate.match = {}
+    if (body.training) competitionPopulate.match.training = { $eq: body.training }
+    if (body.track) competitionPopulate.match.track = { $eq: body.track }
+    if (body.season) competitionPopulate.match.season = { $eq: body.season }
+    return competitionPopulate
+}
+
+function filterStatsRegistries(items) {
+    return items.filter(item => item.competition != null)
+}
+
+function normalizeStatsRegistries(items) {
+    return items.map(item => {
+        const totalTime = Array.isArray(item.times) ? item.times.reduce((partial, value) => partial + value, 0) : null
+        return {
+            ...item,
+            totalTime,
+            speed: item.distance && totalTime ? Math.round(item.distance * 3600 / totalTime * 100) / 100 : '',
+            clubName: item.club && item.club.name ? item.club.name : '',
+            year: item.date ? new Date(item.date).getFullYear() : null
+        }
+    })
+}
+
+function groupCount(items, sourceKey, outputKey) {
+    const grouped = new Map()
+
+    items.forEach(item => {
+        const value = item[sourceKey]
+        if (value == null || value === '') return
+        grouped.set(value, (grouped.get(value) || 0) + 1)
+    })
+
+    return [...grouped.entries()]
+        .map(([key, num]) => ({ [outputKey]: key, num }))
+        .sort((a, b) => {
+            if (typeof a[outputKey] === 'number' && typeof b[outputKey] === 'number') return a[outputKey] - b[outputKey]
+            return String(a[outputKey]).localeCompare(String(b[outputKey]), 'es')
+        })
+}
+
+function completeYearRange(groupedByYear) {
+    const currentYear = new Date().getFullYear()
+    if (groupedByYear.length === 0) return [{ year: currentYear, num: 0 }]
+
+    const years = new Map(groupedByYear.map(item => [item.year, item.num]))
+    const minYear = Math.min(...years.keys())
+    const result = []
+
+    for (let year = minYear; year <= currentYear; year++) {
+        result.push({ year, num: years.get(year) || 0 })
+    }
+
+    return result
+}
+
+function getBestByRace(items) {
+    const bestByRace = new Map()
+
+    items.forEach(item => {
+        if (!item.race || item.totalTime == null) return
+        const current = bestByRace.get(item.race)
+        if (!current || item.totalTime < current.totalTime) bestByRace.set(item.race, item)
+    })
+
+    return [...bestByRace.values()].sort((a, b) => a.race.localeCompare(b.race, 'es'))
+}
+
+function getEmptyStatsSummary() {
+    return {
+        totalRecords: 0,
+        groupedByYear: [{ year: new Date().getFullYear(), num: 0 }],
+        groupedByCategory: [],
+        groupedByClub: [],
+        races: [],
+        bestByRace: []
+    }
 }
 
 function getElements(races, n) {

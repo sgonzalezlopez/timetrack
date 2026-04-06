@@ -111,7 +111,7 @@
 						<div class="card-body" data-type="action-buttons" data-entity="<%=locals.model.modelName%>" data-permissions="<%=locals.permissions.join('')%>" data-new="/<%=locals.view%>">
 							<% const createRegistryLabel = __('CREATE_REGISTRY') === 'CREATE_REGISTRY' ? 'Crear registro' : __('CREATE_REGISTRY'); %>
 							<button type="button" class="btn btn-dark onlyId" onclick="window.location.assign(`/management/competition/${$('#id').val()}/registries`)"><%= __('VIEW_REGISTRIES') %></button>
-							<button type="button" class="btn text-white onlyId" style="background-color:#18c5c8;border-color:#18c5c8" onclick="window.location.assign('/management/registry?competition=<%= locals.object ? locals.object.id : '' %>&date=<%= locals.object && object.date ? encodeURIComponent(moment.utc(object.date).toISOString()) : '' %>')"><%= createRegistryLabel %></button>
+							<button type="button" class="btn text-white onlyId" style="background-color:#18c5c8;border-color:#18c5c8" onclick="window.location.assign(getCreateRegistryUrl())"><%= createRegistryLabel %></button>
 						</div>
 					</div>
 				</div>
@@ -146,3 +146,28 @@
 		window.location.replace('/management/competition-list')
 	})
 </script> -->
+<script>
+	function getCreateRegistryUrl() {
+		const competitionId = $('#id').val() || '';
+		const rawDateValue = $('#date').attr('date-value') || $('#date').val() || '';
+		let encodedDate = '';
+
+		if (rawDateValue) {
+			const parsedDate = moment.utc(rawDateValue, [moment.ISO_8601, 'L', 'DD/MM/YYYY', 'YYYY-MM-DD'], true);
+			encodedDate = encodeURIComponent(parsedDate.isValid() ? parsedDate.toISOString() : rawDateValue);
+		}
+
+		return `/management/registry?competition=${encodeURIComponent(competitionId)}&date=${encodedDate}`;
+	}
+
+	$('#date').on('change', function() {
+		const value = $(this).val();
+		if (!value) {
+			$(this).attr('date-value', '');
+			return;
+		}
+
+		const parsedDate = moment.utc(value, ['L', 'DD/MM/YYYY', 'YYYY-MM-DD', moment.ISO_8601], true);
+		$(this).attr('date-value', parsedDate.isValid() ? parsedDate.toISOString() : value);
+	});
+</script>

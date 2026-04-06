@@ -183,23 +183,18 @@ exports.getStatsSummary = async (req, res) => {
             .select('date category race distance times club competition')
             .populate({ path: 'club', select: 'name' })
             .populate(competitionPopulate)
-            .sort({ date: 1, race: 1 })
             .lean()
 
         const items = normalizeStatsRegistries(filterStatsRegistries(registries))
-        const groupedByYear = completeYearRange(groupCount(items, 'year', 'year'))
-        const groupedByCategory = groupCount(items, 'category', 'category')
-        const groupedByClub = groupCount(items, 'clubName', 'clubName')
-        const races = [...new Set(items.map(item => item.race).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'))
-        const bestByRace = getBestByRace(items)
+        const summary = buildStatsSummary(items)
 
         res.send({
             totalRecords: items.length,
-            groupedByYear,
-            groupedByCategory,
-            groupedByClub,
-            races,
-            bestByRace
+            groupedByYear: summary.groupedByYear,
+            groupedByCategory: summary.groupedByCategory,
+            groupedByClub: summary.groupedByClub,
+            races: summary.races,
+            bestByRace: summary.bestByRace
         })
     } catch (err) {
         console.error(err)
@@ -223,7 +218,7 @@ exports.getStatsRace = async (req, res) => {
             .lean()
 
         const items = normalizeStatsRegistries(filterStatsRegistries(registries))
-        res.send(items.sort((a, b) => new Date(a.date) - new Date(b.date)))
+        res.send(items)
     } catch (err) {
         console.error(err)
         res.status(500).send(err)
@@ -293,23 +288,6 @@ function normalizeStatsRegistries(items) {
     })
 }
 
-function groupCount(items, sourceKey, outputKey) {
-    const grouped = new Map()
-
-    items.forEach(item => {
-        const value = item[sourceKey]
-        if (value == null || value === '') return
-        grouped.set(value, (grouped.get(value) || 0) + 1)
-    })
-
-    return [...grouped.entries()]
-        .map(([key, num]) => ({ [outputKey]: key, num }))
-        .sort((a, b) => {
-            if (typeof a[outputKey] === 'number' && typeof b[outputKey] === 'number') return a[outputKey] - b[outputKey]
-            return String(a[outputKey]).localeCompare(String(b[outputKey]), 'es')
-        })
-}
-
 function completeYearRange(groupedByYear) {
     const currentYear = new Date().getFullYear()
     if (groupedByYear.length === 0) return [{ year: currentYear, num: 0 }]
@@ -325,16 +303,48 @@ function completeYearRange(groupedByYear) {
     return result
 }
 
-function getBestByRace(items) {
+function buildStatsSummary(items) {
+    const yearCounts = new Map()
+    const categoryCounts = new Map()
+    const clubCounts = new Map()
+    const races = new Set()
     const bestByRace = new Map()
 
     items.forEach(item => {
-        if (!item.race || item.totalTime == null) return
-        const current = bestByRace.get(item.race)
-        if (!current || item.totalTime < current.totalTime) bestByRace.set(item.race, item)
+        incrementMap(yearCounts, item.year)
+        incrementMap(categoryCounts, item.category)
+        incrementMap(clubCounts, item.clubName)
+
+        if (item.race) {
+            races.add(item.race)
+            const currentBest = bestByRace.get(item.race)
+            if (item.totalTime != null && (!currentBest || item.totalTime < currentBest.totalTime)) {
+                bestByRace.set(item.race, item)
+            }
+        }
     })
 
-    return [...bestByRace.values()].sort((a, b) => a.race.localeCompare(b.race, 'es'))
+    return {
+        groupedByYear: completeYearRange(mapToCountArray(yearCounts, 'year')),
+        groupedByCategory: mapToCountArray(categoryCounts, 'category'),
+        groupedByClub: mapToCountArray(clubCounts, 'clubName'),
+        races: [...races].sort((a, b) => a.localeCompare(b, 'es')),
+        bestByRace: [...bestByRace.values()].sort((a, b) => a.race.localeCompare(b.race, 'es'))
+    }
+}
+
+function incrementMap(map, key) {
+    if (key == null || key === '') return
+    map.set(key, (map.get(key) || 0) + 1)
+}
+
+function mapToCountArray(map, outputKey) {
+    return [...map.entries()]
+        .map(([key, num]) => ({ [outputKey]: key, num }))
+        .sort((a, b) => {
+            if (typeof a[outputKey] === 'number' && typeof b[outputKey] === 'number') return a[outputKey] - b[outputKey]
+            return String(a[outputKey]).localeCompare(String(b[outputKey]), 'es')
+        })
 }
 
 function getEmptyStatsSummary() {

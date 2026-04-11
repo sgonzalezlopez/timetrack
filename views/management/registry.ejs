@@ -277,8 +277,9 @@
 
 		if (registryDate && !$('#date').val()) {
 			presetDate = registryDate;
-			const formattedDate = moment.utc(registryDate).isValid() ? moment.utc(registryDate).format('L') : registryDate;
-			$('#date').attr('date-value', registryDate);
+			const parsedDate = moment.utc(registryDate, [moment.ISO_8601, 'YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY'], true);
+			const formattedDate = parsedDate.isValid() ? parsedDate.format('DD/MM/YYYY') : registryDate;
+			$('#date').attr('date-value', parsedDate.isValid() ? parsedDate.toISOString() : registryDate);
 			$('#date').val(formattedDate);
 		}
 

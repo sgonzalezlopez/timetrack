@@ -153,7 +153,7 @@
 		let encodedDate = '';
 
 		if (rawDateValue) {
-			const parsedDate = moment.utc(rawDateValue, [moment.ISO_8601, 'L', 'DD/MM/YYYY', 'YYYY-MM-DD'], true);
+			const parsedDate = moment.utc(rawDateValue, [moment.ISO_8601, 'DD/MM/YYYY', 'YYYY-MM-DD', 'MM/DD/YYYY'], true);
 			encodedDate = encodeURIComponent(parsedDate.isValid() ? parsedDate.toISOString() : rawDateValue);
 		}
 
@@ -167,7 +167,7 @@
 			return;
 		}
 
-		const parsedDate = moment.utc(value, ['L', 'DD/MM/YYYY', 'YYYY-MM-DD', moment.ISO_8601], true);
+		const parsedDate = moment.utc(value, ['DD/MM/YYYY', 'YYYY-MM-DD', moment.ISO_8601, 'MM/DD/YYYY'], true);
 		$(this).attr('date-value', parsedDate.isValid() ? parsedDate.toISOString() : value);
 	});
 </script>

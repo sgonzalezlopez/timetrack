@@ -162,7 +162,7 @@
 									<%= __('MODEL_Registry_comments')%>
 								</label>
 								<div class="col-sm-9">
-									<textarea type="text" class="form-control" id="comments" name="comments" placeholder="" value="<%= locals.object ? object['comments'] : '' %>"></textarea>
+									<textarea type="text" class="form-control" id="comments" name="comments" placeholder=""><%= locals.object ? object['comments'] || '' : '' %></textarea>
 								</div>
 							</div>
 						</div>

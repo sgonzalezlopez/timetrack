@@ -122,8 +122,10 @@ function addInput(index) {
 }
 
 function formatterMillisecondsArray(value, row, index) {
-   html = [];
-   value.forEach(element => {
+      if (!Array.isArray(value) || value.length === 0) return '';
+
+      html = [];
+      value.forEach(element => {
       if (element) html.push(`${moment.utc(element).format('HH:mm:ss.SSS')}`)
 
    });

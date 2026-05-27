@@ -13,14 +13,40 @@ const express = require("express");
 const fs = require('fs')
 const initialize = require(path.join(__corePath, "/config/initialize"));
 const { config } = require(path.join(__corePath, "/config/config"));
+const Apps = require(path.join(__corePath, '/models/app.model'))
 const Users = require(path.join(__corePath, '/models/user.model'))
 const Coach = require('./models/coach.model')
 const Skater = require('./models/skater.model')
+const localInitialization = require('./config/initialize')
 
 const default_options = {
   staticPaths : [
     path.join(__dirname, './public'),
   ]
+}
+
+async function syncModuleApplications() {
+  const applications = localInitialization.applications || []
+
+  for (const application of applications) {
+    const parentLink = application.parentLink
+    let parent = null
+
+    if (parentLink) {
+      parent = await Apps.findOne({ link: parentLink })
+      if (!parent) continue
+    }
+
+    const payload = { ...application }
+    delete payload.parentLink
+    payload.parent = parent ? parent._id : null
+
+    await Apps.findOneAndUpdate(
+      { link: payload.link },
+      payload,
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    )
+  }
 }
 
 module.exports.run = async function run(opts) {
@@ -79,7 +105,8 @@ module.exports.run = async function run(opts) {
 
   app = core.configureErrorHandling(app)
 
-  initialize()
+  await initialize()
+  await syncModuleApplications()
 
   console.log('Entorno:', config.app.ENV);
 

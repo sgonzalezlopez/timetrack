@@ -1,9 +1,11 @@
 const applications = [
    {
       name: 'Tests',
+      type: ['side', 'action', 'main'],
       link: '/management/tests-list',
       icon: 'fas fa-vial',
-      roles: ['coach', 'user']
+      parentLink: '/management/',
+      roles: ['admin', 'coach', 'user']
    }
 ]
 

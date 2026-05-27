@@ -2,7 +2,8 @@
           <div class="row">
             <% var styles = ['bg-cyan', 'bg-success', 'bg-warning', 'bg-info', 'bg-danger'];
                 var index = 0;
-                var mgnt = apps.filter(a => a.parent && ("/" + view).startsWith(a.parent.link))
+              var mgnt = apps.filter(a => a.parent && ("/" + view).startsWith(a.parent.link))
+              var hasTestsShortcut = mgnt.some(a => a.link === '/management/tests-list')
             %>
             <% mgnt.forEach(function(app) { %>
               <div class="col-md-6 col-lg-2 col-xlg-3">
@@ -19,6 +20,20 @@
               </div>
             <% if (index >= styles.length) index = 0 %>
             <% }); %>
+            <% if (!hasTestsShortcut) { %>
+              <div class="col-md-6 col-lg-2 col-xlg-3">
+                  <a href="/management/tests-list">
+                  <div class="card card-hover">
+                    <div class="box <%=styles[index++]%> text-center">
+                      <h1 class="font-light text-white">
+                        <i class="fas fa-vial"></i>
+                      </h1>
+                      <h6 class="text-white"><%= __('APP_Tests') %></h6>
+                    </div>
+                  </div>
+                </a>
+              </div>
+            <% } %>
           </div>
         </div>
 

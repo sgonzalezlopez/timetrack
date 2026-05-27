@@ -225,6 +225,123 @@ exports.getStatsRace = async (req, res) => {
     }
 }
 
+exports.getRaceSummaryOptions = async (req, res) => {
+    try {
+        const match = getRaceSummaryMatch({}, req.user)
+        const [races, distances] = await Promise.all([
+            Model.distinct('race', match),
+            Model.distinct('distance', match)
+        ])
+
+        res.send({
+            races: races.filter(value => value != null && value !== '').sort((a, b) => String(a).localeCompare(String(b), 'es')),
+            distances: distances.filter(value => value != null).sort((a, b) => a - b)
+        })
+    } catch (err) {
+        console.error(err)
+        res.status(500).send(err)
+    }
+}
+
+exports.findRaceSummaries = async (req, res) => {
+    try {
+        const match = getRaceSummaryMatch(req.body, req.user)
+        const items = await Model.aggregate([
+            { $match: match },
+            {
+                $group: {
+                    _id: {
+                        race: '$race',
+                        distance: '$distance'
+                    },
+                    competitions: { $addToSet: '$competition' },
+                    registries: { $sum: 1 }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    race: '$_id.race',
+                    distance: '$_id.distance',
+                    competitionsCount: {
+                        $size: {
+                            $filter: {
+                                input: '$competitions',
+                                as: 'competition',
+                                cond: { $ne: ['$$competition', null] }
+                            }
+                        }
+                    },
+                    registriesCount: '$registries'
+                }
+            },
+            { $sort: { race: 1, distance: 1 } }
+        ])
+
+        res.send(items)
+    } catch (err) {
+        console.error(err)
+        res.status(500).send(err)
+    }
+}
+
+exports.updateRaceSummary = async (req, res) => {
+    try {
+        const source = getRaceIdentity(req.body.currentRace, req.body.currentDistance)
+        const target = getRaceIdentity(req.body.race, req.body.distance)
+
+        if (!isValidRaceIdentity(source) || !isValidRaceIdentity(target)) {
+            return res.status(400).send({ message: 'Invalid race data' })
+        }
+
+        const result = await Model.updateMany(
+            getRaceSummaryFilter(source, req.user),
+            { $set: { race: target.race, distance: target.distance } }
+        )
+
+        res.send({
+            message: 'OK',
+            matchedCount: result.matchedCount || 0,
+            modifiedCount: result.modifiedCount || 0
+        })
+    } catch (err) {
+        console.error(err)
+        res.status(500).send(err)
+    }
+}
+
+exports.mergeRaceSummaries = async (req, res) => {
+    try {
+        const target = getRaceIdentity(req.body.targetRace, req.body.targetDistance)
+        const sources = Array.isArray(req.body.sources) ? req.body.sources : []
+        const validSources = sources
+            .map(item => getRaceIdentity(item.race, item.distance))
+            .filter(item => isValidRaceIdentity(item))
+
+        if (!isValidRaceIdentity(target)) {
+            return res.status(400).send({ message: 'Invalid target race data' })
+        }
+
+        if (validSources.length === 0) {
+            return res.status(400).send({ message: 'No source races selected' })
+        }
+
+        const result = await Model.updateMany(
+            getMultipleRaceSummaryFilter(validSources, req.user),
+            { $set: { race: target.race, distance: target.distance } }
+        )
+
+        res.send({
+            message: 'OK',
+            matchedCount: result.matchedCount || 0,
+            modifiedCount: result.modifiedCount || 0
+        })
+    } catch (err) {
+        console.error(err)
+        res.status(500).send(err)
+    }
+}
+
 
 function getBestRecords(data, ntop, bestForSkater) {
     result = [];
@@ -356,6 +473,43 @@ function getEmptyStatsSummary() {
         races: [],
         bestByRace: []
     }
+}
+
+function getRaceSummaryMatch(body, user) {
+    const values = { ...(body || {}) }
+    sanitizeBody(values)
+
+    const match = filter.getFilter('Registry', {}, user)
+    if (values.race) match.race = values.race
+    if (values.distance != null && values.distance !== '') match.distance = Number(values.distance)
+    return match
+}
+
+function getRaceIdentity(race, distance) {
+    return {
+        race: race != null ? String(race).trim() : '',
+        distance: distance === '' || distance == null ? null : Number(distance)
+    }
+}
+
+function isValidRaceIdentity(identity) {
+    return Boolean(identity && identity.race && Number.isFinite(identity.distance))
+}
+
+function getRaceSummaryFilter(identity, user) {
+    const match = filter.getFilter('Registry', {}, user)
+    match.race = identity.race
+    match.distance = identity.distance
+    return match
+}
+
+function getMultipleRaceSummaryFilter(identities, user) {
+    const match = filter.getFilter('Registry', {}, user)
+    match.$or = identities.map(identity => ({
+        race: identity.race,
+        distance: identity.distance
+    }))
+    return match
 }
 
 function getElements(races, n) {

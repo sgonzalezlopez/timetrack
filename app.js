@@ -1,6 +1,7 @@
 // Carga de valores de entorno locales.
 require('dotenv').config({ override: true })
 const path = require('path');
+const fs = require('fs')
 if (typeof __corePath === 'undefined') global.__corePath = path.join(__dirname, './core')
 if (typeof __modulesPath === 'undefined') global.__modulesPath = path.join(__dirname, './node_modules')
 if (typeof __modelsPath === 'undefined') global.__modelsPath = []
@@ -10,7 +11,6 @@ __initialization.push(path.join(__dirname, "./config/initialize"))
 
 const core = require(path.join(__corePath, '/app'))
 const express = require("express");
-const fs = require('fs')
 const initialize = require(path.join(__corePath, "/config/initialize"));
 const { config } = require(path.join(__corePath, "/config/config"));
 const Apps = require(path.join(__corePath, '/models/app.model'))
@@ -18,6 +18,7 @@ const Users = require(path.join(__corePath, '/models/user.model'))
 const Coach = require('./models/coach.model')
 const Skater = require('./models/skater.model')
 const localInitialization = require('./config/initialize')
+const i18n = require(path.join(__corePath, '/i18n/i18n.config'))
 
 const default_options = {
   staticPaths : [
@@ -49,8 +50,38 @@ async function syncModuleApplications() {
   }
 }
 
+function syncModuleLocales() {
+  const moduleLocalesPath = path.join(__dirname, 'locales')
+  const rootLocalesPath = path.resolve(__dirname, '../locales')
+
+  if (!fs.existsSync(moduleLocalesPath) || !fs.existsSync(rootLocalesPath)) return
+
+  const localeFiles = fs.readdirSync(moduleLocalesPath).filter(fileName => fileName.endsWith('.json'))
+
+  localeFiles.forEach(fileName => {
+    const moduleLocaleFile = path.join(moduleLocalesPath, fileName)
+    const rootLocaleFile = path.join(rootLocalesPath, fileName)
+    if (!fs.existsSync(rootLocaleFile)) return
+
+    const moduleCatalog = JSON.parse(fs.readFileSync(moduleLocaleFile, 'utf8'))
+    const rootCatalog = JSON.parse(fs.readFileSync(rootLocaleFile, 'utf8'))
+    const mergedCatalog = { ...rootCatalog, ...moduleCatalog }
+
+    if (JSON.stringify(rootCatalog) !== JSON.stringify(mergedCatalog)) {
+      fs.writeFileSync(rootLocaleFile, `${JSON.stringify(mergedCatalog, null, 2)}\n`)
+    }
+
+    const localeName = path.basename(fileName, '.json')
+    if (typeof i18n.getCatalog === 'function') {
+      const activeCatalog = i18n.getCatalog(localeName) || {}
+      Object.assign(activeCatalog, mergedCatalog)
+    }
+  })
+}
+
 module.exports.run = async function run(opts) {
   var options = {...default_options, ...opts}
+  syncModuleLocales()
   app = await core.setup({deserializeUser : function(id, done) {
     Users.findOne({ _id: id })
       .then(async user => {

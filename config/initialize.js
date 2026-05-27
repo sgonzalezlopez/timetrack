@@ -3,7 +3,7 @@ const applications = [
       name: 'Tests',
       type: ['side', 'action', 'main'],
       link: '/management/tests-list',
-      icon: 'fas fa-vial',
+      icon: 'fa-solid fa-flag-checkered',
       parentLink: '/management/',
       roles: ['admin', 'coach', 'user']
    }

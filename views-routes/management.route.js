@@ -7,7 +7,7 @@ const router = express.Router();
 const viewRoute = 'management/';
 
 router.get('/', function (req, res, next) {
-    actions.renderWithApps(req, res, next, 'subindex', {parentApp : '/' + viewRoute})
+  actions.renderWithApps(req, res, next, viewRoute + 'index', {parentApp : '/' + viewRoute})
 });
 
 router.get('/:page', async function (req, res, next) {

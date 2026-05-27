@@ -3,7 +3,6 @@ const applications = [
       name: 'Tests',
       link: '/management/tests-list',
       icon: 'fas fa-vial',
-      parent: '/management',
       roles: ['coach', 'user']
    }
 ]

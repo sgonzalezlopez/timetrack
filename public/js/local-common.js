@@ -1,12 +1,19 @@
 core.setOptions({ locale: 'es', appName: 'Time Tracking' })
 
 (function configureBootstrapTableExportTypes() {
+
+   function normalizeExportType(type) {
+      const value = String(type || '').toLowerCase();
+      if (value === 'xls' || value === 'excel') return 'excel';
+      return value;
+   }
+
    function dedupeExportTypes(types) {
       if (!Array.isArray(types)) return types;
 
       const seen = new Set();
       return types.filter(type => {
-         const key = String(type);
+         const key = normalizeExportType(type);
          if (seen.has(key)) return false;
          seen.add(key);
          return true;

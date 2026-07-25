@@ -1,41 +1,5 @@
 core.setOptions({ locale: 'es', appName: 'Time Tracking' })
 
-(function configureBootstrapTableExportTypes() {
-
-   function normalizeExportType(type) {
-      const value = String(type || '').toLowerCase();
-      if (value === 'xls' || value === 'excel') return 'excel';
-      return value;
-   }
-
-   function dedupeExportTypes(types) {
-      if (!Array.isArray(types)) return types;
-
-      const seen = new Set();
-      return types.filter(type => {
-         const key = normalizeExportType(type);
-         if (seen.has(key)) return false;
-         seen.add(key);
-         return true;
-      });
-   }
-
-   function applyExportTypeDefaults() {
-      if (!window.jQuery || !$.fn || !$.fn.bootstrapTable || !$.fn.bootstrapTable.defaults) {
-         return false;
-      }
-
-      const defaults = $.fn.bootstrapTable.defaults;
-      defaults.exportTypes = dedupeExportTypes(defaults.exportTypes);
-      return true;
-   }
-
-   if (!applyExportTypeDefaults()) {
-      document.addEventListener('DOMContentLoaded', applyExportTypeDefaults, { once: true });
-      window.addEventListener('load', applyExportTypeDefaults, { once: true });
-   }
-})();
-
 
 function showDetail(index) {
    $('#table').bootstrapTable('toggleDetailView', index);

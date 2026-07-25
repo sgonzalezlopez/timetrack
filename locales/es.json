@@ -180,6 +180,7 @@
   "Tracks": "Pistas",
   "VIEW_EVENTS": "Ver eventos",
   "VIEW_REGISTRIES": "Ver registros",
+  "LOAD_TEST_REGISTRIES_ERROR": "No se pudieron cargar los registros de la prueba",
   "best-times": "Mejores Tiempos",
   "club": "Clubs",
   "club-list": "Listado de Clubs",

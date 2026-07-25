@@ -336,6 +336,7 @@
   "Username": "Username",
   "VIEW_EVENTS": "VIEW_EVENTS",
   "VIEW_REGISTRIES": "VIEW_REGISTRIES",
+  "LOAD_TEST_REGISTRIES_ERROR": "Unable to load test registries",
   "app-list": "app-list",
   "apps": "apps",
   "best-times": "best-times",

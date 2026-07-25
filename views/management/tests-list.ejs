@@ -79,8 +79,51 @@
 	</div>
 </div>
 
+<div class="modal fade" id="RaceRegistriesModal" tabindex="-1" aria-hidden="true">
+	<div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="raceRegistriesTitle"><%= __('VIEW_REGISTRIES') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div class="table-responsive">
+					<table id="registriesTable" data-toggle="table" data-sortable="true" class="table table-striped table-bordered">
+						<thead>
+							<tr>
+								<th data-field="date" data-formatter="core.formatters.date" data-sortable="true">
+									<%= __('COL_date') %>
+								</th>
+								<th data-field="skater.fullname" data-sortable="true">
+									<%= __('COL_skater') %>
+								</th>
+								<th data-field="category" data-sortable="true">
+									<%= __('COL_category') %>
+								</th>
+								<th data-field="competition.fullname" data-sortable="true">
+									<%= __('COL_competition') %>
+								</th>
+								<th data-field="totalTime" data-sortable="true" data-formatter="core.formatters.milliseconds">
+									<%= __('COL_totalTime') %>
+								</th>
+								<th data-field="_id" data-formatter="registryActionFormatter" data-align="center">
+									<%= __('COL_actions') %>
+								</th>
+							</tr>
+						</thead>
+					</table>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('CLOSE') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <script>
 	var editModal = null;
+	var registriesModal = null;
 	var currentRaceRow = null;
 
 	function normalizeDistance(value) {
@@ -106,6 +149,28 @@
 		}
 
 		console.log(message);
+	}
+
+	function escapeHtml(value) {
+		return $('<div>').text(value == null ? '' : value).html();
+	}
+
+	function formatRaceLabel(row) {
+		const race = row && row.race ? row.race : '';
+		const distance = row && row.distance != null && row.distance !== '' ? distanceFormatter(row.distance) : '';
+		return [race, distance].filter(Boolean).join(' - ');
+	}
+
+	function registryActionFormatter(value, row) {
+		if (!row || !row._id) {
+			return '';
+		}
+
+		return [
+			'<a href="/management/registry/' + row._id + '" title="<%= __('VIEW_REGISTRIES') %>">',
+			'<i class="fa fa-eye"></i>',
+			'</a>'
+		].join('');
 	}
 
 	function getFilters() {
@@ -190,7 +255,8 @@
 
 	function actionFormatter(value, row, index) {
 		return [
-			'<%- permissions.includes("U") ? `<a class="edit" href="javascript:void(0)" title="${__("EDIT_RACE")}"><i class="fa fa-edit"></i></a> <a class="merge" href="javascript:void(0)" title="${__("MERGE_RACES")}"><i class="fa fa-compress"></i></a>` : `` %>'
+			'<a class="view-registries" href="javascript:void(0)" title="<%= __('VIEW_REGISTRIES') %>"><i class="fa fa-list"></i></a>',
+			'<%- permissions.includes("U") ? ` <a class="edit" href="javascript:void(0)" title="${__("EDIT_RACE")}"><i class="fa fa-edit"></i></a> <a class="merge" href="javascript:void(0)" title="${__("MERGE_RACES")}"><i class="fa fa-compress"></i></a>` : `` %>'
 		].join('');
 	}
 
@@ -202,6 +268,39 @@
 			editModal = new bootstrap.Modal(document.getElementById('RaceEditModal'));
 		}
 		editModal.show();
+	}
+
+	function openRegistriesModal(row) {
+		if (!row) return;
+
+		$('#raceRegistriesTitle').html('<%= __('VIEW_REGISTRIES') %>: ' + escapeHtml(formatRaceLabel(row)));
+
+		if (!registriesModal) {
+			registriesModal = new bootstrap.Modal(document.getElementById('RaceRegistriesModal'));
+		}
+
+		registriesModal.show();
+		$('#registriesTable').bootstrapTable('removeAll');
+
+		$.ajax({
+			type: 'POST',
+			url: '/api/registry/find',
+			data: {
+				race: row.race,
+				distance: row.distance
+			},
+			dataType: 'json',
+			success: function(data) {
+				const sortedData = (data || []).sort(function(left, right) {
+					return new Date(right.date || 0) - new Date(left.date || 0);
+				});
+				$('#registriesTable').bootstrapTable('load', sortedData);
+			},
+			error: function(error) {
+				console.error(error);
+				notify('error', '<%= __('LOAD_TEST_REGISTRIES_ERROR') %>');
+			}
+		});
 	}
 
 	function mergeInto(row) {
@@ -237,6 +336,11 @@
 	}
 
 	window.actionEvents = {
+		'click .view-registries': function(event, value, row) {
+			event.preventDefault();
+			event.stopPropagation();
+			openRegistriesModal(row);
+		},
 		'click .edit': function(event, value, row) {
 			event.preventDefault();
 			event.stopPropagation();

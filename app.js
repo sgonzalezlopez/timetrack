@@ -129,6 +129,7 @@ module.exports.run = async function run(opts) {
   });
 
   app.set('views', [path.join(__dirname, '/views'), path.join(__corePath, '/views')]);
+  app.use('/api/v1', require('./api/external.route'))
   app.use('/api', require('./api/routes'))
   app.use('/', require('./views-routes/routes'));
   app = core.configureRoutes(app)

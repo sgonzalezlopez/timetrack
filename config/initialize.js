@@ -6,6 +6,20 @@ const applications = [
       icon: 'fa-solid fa-flag-checkered',
       parentLink: '/management/',
       roles: ['admin', 'coach', 'user']
+   },
+   {
+      name: 'Stats',
+      type: ['side', 'main'],
+      link: '/private/stats',
+      icon: 'fas fa-chart-line',
+      roles: ['admin', 'coach', 'user']
+   },
+   {
+      name: 'Skater Registry',
+      type: ['side', 'main'],
+      link: '/private/skater-registry',
+      icon: 'fas fa-stopwatch',
+      roles: ['admin', 'coach', 'user']
    }
 ]
 

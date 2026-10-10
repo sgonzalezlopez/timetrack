@@ -393,5 +393,16 @@
 	"category-search": "category-search",
 	"MODEL_Category": "MODEL_Category",
 	"category": "category",
+	"UPDATE_CATEGORIES": "Update categories",
+	"UPDATE_CATEGORIES_HELP": "Select the Excel file with the ages table (age at season end, female category, male category; first row is the header) and enter the season start and end. Category intervals will be recalculated for the current season.",
+	"CATEGORIES_FILE": "Categories file",
+	"SEASON_START": "Season start",
+	"SEASON_END": "Season end",
+	"CATEGORIES_UPDATED": "Categories updated",
+	"CATEGORIES_NOT_IN_FILE": "Categories not in file (unchanged)",
+	"CATEGORY_UPDATE_FILE_REQUIRED": "Select a file",
+	"CATEGORY_UPDATE_FILE_INVALID": "The file is invalid or has no ages table",
+	"CATEGORY_UPDATE_SEASON_INVALID": "Invalid season dates",
+	"CATEGORY_UPDATE_ERROR": "Error updating categories",
 	"category-list": "category-list"
 }

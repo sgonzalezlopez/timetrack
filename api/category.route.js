@@ -6,6 +6,7 @@ const authentication = require(path.join(__corePath, '/middlewares/authenticatio
 const authorization = require(path.join(__corePath, '/middlewares/authorization'))
 
 router.get("/", authorization.checkPermision('category', 'R'), controller.getAll);
+router.post("/update-from-file", authorization.checkPermision('category', 'U'), controller.updateFromFile);
 router.get("/:id", authorization.checkPermision('category', 'R'), controller.get);
 router.post("/find", authorization.checkPermision('category', 'R'), controller.find);
 router.put("/:id", authorization.checkPermision('category', 'U'), controller.update);

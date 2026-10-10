@@ -47,7 +47,11 @@
 							</div>
 						</div>
 					</div>
-				<div data-type="search-buttons" data-api="/api/category" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="CategoryForm"></div>
+				<div data-type="search-buttons" data-api="/api/category" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="CategoryForm">
+					<% if (locals.permissions.includes('U')) { %>
+					<button id="CategoryUpdate_open_btn" type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#UpdateCategoriesModal"><%= __('UPDATE_CATEGORIES') %></button>
+					<% } %>
+				</div>
 			</div>
 		</div>
 	</form>
@@ -77,7 +81,85 @@
 		</div>
 	</div>
 </div>
+<% if (locals.permissions.includes('U')) { %>
+<div class="modal fade" id="UpdateCategoriesModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"><%= __('UPDATE_CATEGORIES') %></h5>
+				<button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<form id="UpdateCategoriesForm" class="form-horizontal">
+					<p class="text-muted"><%= __('UPDATE_CATEGORIES_HELP') %></p>
+					<div class="form-group row">
+						<label for="categoriesFile" class="col-sm-4 text-end control-label col-form-label"><%= __('CATEGORIES_FILE') %></label>
+						<div class="col-sm-8">
+							<input type="file" class="form-control" id="categoriesFile" name="file" accept=".xlsx" />
+						</div>
+					</div>
+					<div class="form-group row">
+						<label class="col-sm-4 text-end control-label col-form-label"><%= __('SEASON_START') %></label>
+						<div class="col-sm-3">
+							<input type="number" class="form-control" id="startDay" name="startDay" min="1" max="31" value="1" />
+						</div>
+						<div class="col-sm-5">
+							<select class="form-select" id="startMonth" name="startMonth"></select>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label class="col-sm-4 text-end control-label col-form-label"><%= __('SEASON_END') %></label>
+						<div class="col-sm-3">
+							<input type="number" class="form-control" id="endDay" name="endDay" min="1" max="31" value="30" />
+						</div>
+						<div class="col-sm-5">
+							<select class="form-select" id="endMonth" name="endMonth"></select>
+						</div>
+					</div>
+				</form>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('CLOSE') %></button>
+				<button id="UpdateCategories_accept_btn" type="button" class="btn btn-primary"><%= __('ACCEPT') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+<% } %>
 <script>
+	$(function () {
+		const months = moment.months();
+		months.forEach((name, i) => {
+			$('#startMonth').append(new Option(name, i + 1, false, i === 6));
+			$('#endMonth').append(new Option(name, i + 1, false, i === 5));
+		});
+	});
+
+	$('#UpdateCategories_accept_btn').click(() => {
+		const file = $('#categoriesFile')[0].files[0];
+		if (!file) return toastr.error('<%= __("CATEGORY_UPDATE_FILE_REQUIRED") %>', core.options.appName);
+		const data = new FormData($('#UpdateCategoriesForm')[0]);
+		$.ajax({
+			type: 'POST',
+			url: '/api/category/update-from-file',
+			data: data,
+			processData: false,
+			contentType: false,
+			success: function (result) {
+				toastr.success(`<%= __('CATEGORIES_UPDATED') %>: ${result.updated.length}`, core.options.appName);
+				if (result.notInFile.length) toastr.warning(`<%= __('CATEGORIES_NOT_IN_FILE') %>: ${result.notInFile.join(', ')}`, core.options.appName);
+				$('#UpdateCategoriesModal').modal('hide');
+				core.api.find('/api/category', core.forms.parse('CategoryForm'), (rows) => $('#table').bootstrapTable('load', rows));
+			},
+			error: function (error) {
+				const message = error.responseJSON && error.responseJSON.message;
+				toastr.error(message || '<%= __("CATEGORY_UPDATE_ERROR") %>', core.options.appName);
+			}
+		});
+	});
+
 	function actionFormatter(value, row, index) {
 		return [
 			'<a class="view" href="/management/category/' + row._id + '" title="">',

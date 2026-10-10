@@ -6,6 +6,7 @@ const authentication = require(path.join(__corePath, '/middlewares/authenticatio
 const authorization = require(path.join(__corePath, '/middlewares/authorization'))
 
 router.get("/", authorization.checkPermision('skater', 'R'), controller.getAll);
+router.post("/update-categories", authorization.checkPermision('skater', 'U'), controller.updateCategories);
 router.get("/:id/registries", authorization.checkPermision('skater', 'R'), controller.getRegistries);
 router.delete("/:id/registries/:reg", authorization.checkPermision('skater', 'R'), authorization.checkPermision('registry', 'D'), controller.deleteRegistry);
 router.get("/:id", authorization.checkPermision('skater', 'R'), controller.get);

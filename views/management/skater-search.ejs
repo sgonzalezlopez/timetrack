@@ -88,7 +88,11 @@
 							</div>
 						</div>
 					</div>
-					<div data-type="search-buttons" data-api="/api/skater" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="SkaterForm"></div>
+					<div data-type="search-buttons" data-api="/api/skater" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="SkaterForm">
+						<% if (locals.permissions.includes('U')) { %>
+						<button id="SkaterUpdateCategories_btn" type="button" class="btn btn-dark"><%= __('UPDATE_SKATER_CATEGORIES') %></button>
+						<% } %>
+					</div>
 				</div>
 			</div>
 	</form>
@@ -150,6 +154,73 @@
 		})
 	})
 </script>
+<% if (locals.permissions.includes('U')) { %>
+<div class="modal fade" id="SkaterCategoriesReportModal" tabindex="-1" role="dialog" aria-hidden="true">
+	<div class="modal-dialog modal-lg" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title"><%= __('UPDATE_SKATER_CATEGORIES') %></h5>
+				<button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+					<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				<p><span id="reportUpdatedCount" class="fw-bold"></span> <%= __('SKATERS_CATEGORY_UPDATED') %>
+					<a href="javascript:void(0)" id="reportUpdatedToggle"><%= __('VIEW_LIST') %></a></p>
+				<div id="reportUpdatedList" class="table-responsive" style="display:none; max-height: 250px; overflow:auto"></div>
+				<p><span id="reportNotUpdatedCount" class="fw-bold"></span> <%= __('SKATERS_CATEGORY_NOT_UPDATED') %>
+					<a href="javascript:void(0)" id="reportNotUpdatedToggle"><%= __('VIEW_LIST') %></a></p>
+				<div id="reportNotUpdatedList" class="table-responsive" style="display:none; max-height: 250px; overflow:auto"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('CLOSE') %></button>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+	const skaterCategoryReasons = {
+		NO_BIRTHDATE: '<%= __("REASON_NO_BIRTHDATE") %>',
+		NO_GENDER: '<%= __("REASON_NO_GENDER") %>',
+		NO_CATEGORY_MATCH: '<%= __("REASON_NO_CATEGORY_MATCH") %>',
+		AMBIGUOUS_CATEGORY: '<%= __("REASON_AMBIGUOUS_CATEGORY") %>'
+	};
+
+	function reportTable(headers, rows) {
+		const esc = (v) => $('<div>').text(v == null ? '' : v).html();
+		const head = headers.map(h => `<th>${esc(h)}</th>`).join('');
+		const body = rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('');
+		return `<table class="table table-sm table-striped"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+	}
+
+	$('#SkaterUpdateCategories_btn').click(() => {
+		if (!confirm('<%= __("UPDATE_SKATER_CATEGORIES_CONFIRM") %>')) return;
+		$.ajax({
+			type: 'POST',
+			url: '/api/skater/update-categories',
+			dataType: 'json',
+			success: function (result) {
+				$('#reportUpdatedCount').text(result.updated.length);
+				$('#reportNotUpdatedCount').text(result.notUpdated.length);
+				$('#reportUpdatedList').hide().html(reportTable(
+					['<%= __("COL_name") %>', '<%= __("PREVIOUS_CATEGORY") %>', '<%= __("COL_currentcategory") %>'],
+					result.updated.map(s => [s.fullname, s.previousCategory, s.category])));
+				$('#reportNotUpdatedList').hide().html(reportTable(
+					['<%= __("COL_name") %>', '<%= __("COL_currentcategory") %>', '<%= __("REASON") %>'],
+					result.notUpdated.map(s => [s.fullname, s.previousCategory, skaterCategoryReasons[s.reason] || s.reason])));
+				$('#SkaterCategoriesReportModal').modal('show');
+				$('#SkaterForm_search_btn').trigger('click');
+			},
+			error: function (error) {
+				const message = error.responseJSON && error.responseJSON.message;
+				toastr.error(message || '<%= __("CATEGORY_UPDATE_ERROR") %>', core.options.appName);
+			}
+		});
+	});
+	$('#reportUpdatedToggle').click(() => $('#reportUpdatedList').toggle());
+	$('#reportNotUpdatedToggle').click(() => $('#reportNotUpdatedList').toggle());
+</script>
+<% } %>
 <% if(locals.permissions.includes('C')) { %>
 <script>
 	$("#SkaterForm_new_btn").click(() => {

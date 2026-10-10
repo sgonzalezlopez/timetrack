@@ -1,4 +1,5 @@
 const Model = require("../models/skater.model");
+const Category = require("../models/category.model");
 const filter = require('../middlewares/data.filter')
 
 exports.getAll = (req, res) => {
@@ -64,6 +65,52 @@ exports.updateMany = (req, res) => {
     } catch (err) {
         console.error(err);
         throw err
+    }
+}
+
+// Las categorías de mujeres empiezan por "L" y las de hombres por "M"; el resto aplica a ambos sexos
+function categoryGender(name) {
+    const initial = (name || '').trim().charAt(0).toUpperCase()
+    if (initial === 'L') return 'F'
+    if (initial === 'M') return 'M'
+    return null
+}
+
+exports.updateCategories = async (req, res) => {
+    try {
+        const categories = (await Category.find()).filter(c => c.name && c.from && c.to)
+        const skaters = await Model.find()
+        const updated = [], notUpdated = []
+
+        for (const skater of skaters) {
+            const info = {
+                id: skater.id,
+                fullname: `${skater.name || ''} ${skater.lastname || ''}`.trim(),
+                previousCategory: skater.currentcategory || null,
+                category: null
+            }
+            if (!skater.birthDate) { notUpdated.push({ ...info, reason: 'NO_BIRTHDATE' }); continue }
+            if (!skater.gender) { notUpdated.push({ ...info, reason: 'NO_GENDER' }); continue }
+
+            const matches = categories.filter(c => {
+                const gender = categoryGender(c.name)
+                return (gender === null || gender === skater.gender) && skater.birthDate >= c.from && skater.birthDate <= c.to
+            })
+            if (matches.length === 0) { notUpdated.push({ ...info, reason: 'NO_CATEGORY_MATCH' }); continue }
+            if (matches.length > 1) { notUpdated.push({ ...info, reason: 'AMBIGUOUS_CATEGORY' }); continue }
+
+            const category = matches[0].name.trim()
+            if (skater.currentcategory !== category) {
+                skater.currentcategory = category
+                await skater.save()
+            }
+            updated.push({ ...info, category, changed: info.previousCategory !== category })
+        }
+
+        res.send({ updated, notUpdated })
+    } catch (err) {
+        console.error(err)
+        res.status(500).send({ message: err.message })
     }
 }
 

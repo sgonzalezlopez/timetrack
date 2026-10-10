@@ -13,7 +13,12 @@ const CategorySchema = mongoose.Schema({
         type : Date,
     }
 },
-{ timestamps: true });
+{
+    timestamps: true,
+    // El formulario necesita `id` en la respuesta para saber que el registro ya existe
+    toObject: { virtuals: true },
+    toJSON: { virtuals: true }
+});
 
 // exporting module to allow it to be imported in other files
 module.exports = mongoose.model('Category', CategorySchema);

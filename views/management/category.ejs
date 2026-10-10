@@ -55,12 +55,9 @@
 </div>
 <script>
 	function clearForm() {
-		$('#CategoryForm')[0].reset();
+		// Se mantienen las fechas de inicio y fin
+		$('#CategoryForm #name').val('');
 		$('#CategoryForm #id').val('');
-		$('#CategoryForm .mydatepicker').each(function() {
-			$(this).datepicker('clearDates');
-			$(this).attr('date-value', '');
-		});
 	}
 
 	$('#CategoryForm_submit_btn').click(() => {

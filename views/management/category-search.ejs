@@ -137,7 +137,7 @@
 		});
 	});
 
-	$('#UpdateCategories_accept_btn').click(() => {
+	$(document).on('click', '#UpdateCategories_accept_btn', () => {
 		const file = $('#categoriesFile')[0].files[0];
 		if (!file) return toastr.error('<%= __("CATEGORY_UPDATE_FILE_REQUIRED") %>', core.options.appName);
 		const data = new FormData($('#UpdateCategoriesForm')[0]);

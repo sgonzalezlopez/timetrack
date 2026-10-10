@@ -193,7 +193,7 @@
 		return `<table class="table table-sm table-striped"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 	}
 
-	$('#SkaterUpdateCategories_btn').click(() => {
+	$(document).on('click', '#SkaterUpdateCategories_btn', () => {
 		if (!confirm('<%= __("UPDATE_SKATER_CATEGORIES_CONFIRM") %>')) return;
 		$.ajax({
 			type: 'POST',

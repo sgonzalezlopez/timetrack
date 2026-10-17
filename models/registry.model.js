@@ -50,6 +50,14 @@ const RegistrySchema = mongoose.Schema({
     }],
     comments : {
         type : String
+    },
+    source: {
+        type: String,
+        hideInForm: true
+    },
+    externalReference: {
+        type: String,
+        hideInForm: true
     }
 } , { 
     timestamps: true,
@@ -75,7 +83,10 @@ RegistrySchema.index({ skater: 1, race: 1, date: 1 });
 RegistrySchema.index({ skater: 1, date: 1 });
 RegistrySchema.index({ competition: 1 });
 RegistrySchema.index({ club: 1 });
+RegistrySchema.index({ source: 1, externalReference: 1 }, {
+    unique: true,
+    partialFilterExpression: { source: { $type: 'string' }, externalReference: { $type: 'string' } }
+});
 
 // exporting module to allow it to be imported in other files
 module.exports = mongoose.model('Registry', RegistrySchema);
-

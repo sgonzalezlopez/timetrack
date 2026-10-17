@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
-const { normalize, candidatesFor, validateRow } = require('../utils/registry-import')
+const { normalize, candidatesFor, validateRow, completeRow } = require('../utils/registry-import')
 
 const row = () => ({
     skaterName: 'Ona Rodríguez Cornejo', gender: 'F', date: '2026-10-17',
@@ -59,7 +59,7 @@ function harness(input, options = {}) {
         },
         '../models/category.model': { find: async () => categories },
         '../middlewares/data.filter': { getFilter: (_entity, query) => query },
-        '../utils/registry-import': { normalize, candidatesFor, validateRow }
+        '../utils/registry-import': { normalize, candidatesFor, validateRow, completeRow }
     }
     const exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/registry-import.controller.js'), 'utf8'), {
@@ -188,5 +188,55 @@ test('duplicates belonging to another event cannot be overwritten', async () => 
     const { result: preview } = await h.preview()
     assert.equal(preview.rows[0].duplicateId, null)
     assert.equal((await h.commit(preview.token, [{ action: 'replace', category: 'LA2' }])).status, 400)
+    assert.equal(h.writes.length, 0)
+})
+
+test('missing date and distance are requested per row, never inherited, and validated before writes', async () => {
+    const incomplete = { ...row(), date: null, distance: null, requiredInputs: ['date', 'distance'] }
+    const h = harness([incomplete, { ...incomplete, externalReference: 'source-row-2' }])
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].issue, null)
+    assert.deepEqual(Array.from(preview.rows[0].requiredInputs), ['date', 'distance'])
+    assert.equal(preview.rows[1].date, null)
+    assert.equal(preview.rows[1].distance, null)
+    const choices = [
+        { action: 'import', category: 'LA2', date: '2026-05-16', distance: '365' },
+        { action: 'import', category: 'LA2' }
+    ]
+    assert.equal((await h.commit(preview.token, choices)).status, 400)
+    assert.equal(h.writes.length, 0)
+    choices[1].date = '2026-05-17'
+    choices[1].distance = '400'
+    const { result: report } = await h.commit(preview.token, choices)
+    assert.equal(report.imported.length, 2)
+    const values = h.writes.filter(w => w[0] === 'registry').map(w => w[1])
+    assert.equal(values[0].date, '2026-05-16')
+    assert.equal(values[0].distance, 365)
+    assert.equal(values[1].date, '2026-05-17')
+    assert.equal(values[1].distance, 400)
+})
+
+test('published fields cannot be replaced by review inputs; missing and invalid inputs are rejected', () => {
+    const original = row()
+    assert.deepEqual(completeRow(original, { date: '2000-01-01', distance: 1 }), original)
+    const incomplete = { ...original, date: null, distance: null, requiredInputs: ['date', 'distance'] }
+    for (const date of ['', '2026-02-30', '2026-05-16T00:00:00Z', 'invalid']) {
+        assert.equal(validateRow(completeRow(incomplete, { date, distance: '365' })), 'IMPORT_INVALID_DATE')
+    }
+    for (const distance of ['', '0', '-1', 'invalid', 'Infinity']) {
+        assert.equal(validateRow(completeRow(incomplete, { date: '2026-05-16', distance })), 'IMPORT_INVALID_RACE')
+    }
+})
+
+test('untimed PDF results stay in the report even when date and distance are missing', async () => {
+    const h = harness([{
+        ...row(), date: null, distance: null, times: [], totalTime: null, rail: '',
+        requiredInputs: ['date', 'distance'], sourceLocation: 'PDF 2 / 21'
+    }])
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].issue, 'IMPORT_MISSING_TIMES')
+    const { result } = await h.commit(preview.token, [{ action: 'import' }])
+    assert.equal(result.skipped[0].reason, 'IMPORT_MISSING_TIMES')
+    assert.equal(result.skipped[0].row, 'PDF 2 / 21')
     assert.equal(h.writes.length, 0)
 })

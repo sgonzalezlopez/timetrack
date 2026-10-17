@@ -7,7 +7,7 @@ const Club = require('../models/club.model')
 const Category = require('../models/category.model')
 const authorization = require(path.join(__corePath, 'middlewares/authorization'))
 const filter = require('../middlewares/data.filter')
-const { normalize, candidatesFor, validateRow } = require('../utils/registry-import')
+const { normalize, candidatesFor, validateRow, completeRow } = require('../utils/registry-import')
 
 const previews = new Map()
 const lifetime = 30 * 60 * 1000
@@ -54,7 +54,8 @@ exports.preview = async (req, res, next) => {
         const prepared = []
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i]
-            const issue = row.team || (row.status && row.status !== 'OK') ? 'IMPORT_SPECIAL_RESULT' : validateRow(row)
+            const issue = row.team || (row.status && row.status !== 'OK') ? 'IMPORT_SPECIAL_RESULT' :
+                validateRow(row, { allowMissing: true })
             const match = issue ? { candidates: [], automatic: false } : candidatesFor(row, skaters)
             const club = clubs.find(c => row.clubName && normalize(c.name) === normalize(row.clubName)) ||
                 clubs.find(c => c.name === 'UNKNOWN')
@@ -93,6 +94,8 @@ exports.preview = async (req, res, next) => {
             rows: prepared.map(({ row, ...p }) => ({
                 ...p, skaterName: row.skaterName, gender: row.gender, race: row.race,
                 date: row.date, inputCategory: row.category || '',
+                distance: row.distance, dateText: row.dateText,
+                requiredInputs: row.requiredInputs || [], sourceLocation: row.sourceLocation,
                 competitionMismatch: row.competitionName && normalize(row.competitionName) !== normalize(competition.name)
             }))
         })
@@ -114,6 +117,9 @@ exports.commit = async (req, res, next) => {
             const p = entry.rows[i], choice = choices[i]
             if (!choice) return error(res, 400, 'IMPORT_INVALID_CHOICES')
             if (choice.action === 'skip' || p.issue) { plans.push(null); continue }
+            const resolvedRow = completeRow(p.row, choice)
+            const rowIssue = validateRow(resolvedRow)
+            if (rowIssue) return error(res, 400, rowIssue)
             if (choice.action !== 'import' && choice.action !== 'replace') return error(res, 400, 'IMPORT_INVALID_CHOICES')
             if (p.duplicate && (choice.action !== 'replace' || !p.duplicateId)) return error(res, 400, 'IMPORT_INVALID_CHOICES')
             if (!p.duplicate && choice.action !== 'import') return error(res, 400, 'IMPORT_INVALID_CHOICES')
@@ -123,7 +129,7 @@ exports.commit = async (req, res, next) => {
             const category = p.category || choice.category
             if (!categoryNames.has(category)) return error(res, 400, 'IMPORT_INVALID_CHOICES')
             if (!p.clubId && !entry.canCreateClub) return error(res, 403, 'ERR005')
-            plans.push({ p, skaterId, category })
+            plans.push({ p, skaterId, category, resolvedRow })
         }
         // Revalidate permissions at confirmation, not just at preview time.
         const [sp, cp, rp] = await Promise.all([
@@ -138,12 +144,12 @@ exports.commit = async (req, res, next) => {
         const newlyCreated = new Map()
         for (let i = 0; i < plans.length; i++) {
             const plan = plans[i], original = entry.rows[i]
-            const item = { row: i + 2, name: original.row.skaterName }
+            const item = { row: original.row.sourceLocation || i + 2, name: original.row.skaterName }
             if (!plan) {
                 report.skipped.push({ ...item, reason: original.issue || 'IMPORT_SKIPPED' })
                 continue
             }
-            const { p, category } = plan
+            const { p, category, resolvedRow } = plan
             try {
                 const duplicateFilter = p.row.source && p.row.externalReference ?
                     { source: p.row.source, externalReference: p.row.externalReference } : null
@@ -181,7 +187,7 @@ exports.commit = async (req, res, next) => {
                 }
                 const values = {
                     competition: entry.competition, skater: skaterId, club: clubId, category,
-                    date: p.row.date, race: p.row.race, distance: p.row.distance,
+                    date: resolvedRow.date, race: p.row.race, distance: resolvedRow.distance,
                     times: p.row.times, rail: p.row.rail, starting: p.row.starting,
                     source: p.row.source, externalReference: p.row.externalReference
                 }

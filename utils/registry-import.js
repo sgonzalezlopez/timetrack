@@ -19,10 +19,25 @@ function candidatesFor(row, skaters) {
     return { candidates, automatic: false }
 }
 
-function validateRow(row) {
+function completeRow(row, choice) {
+    return {
+        ...row,
+        date: row.requiredInputs && row.requiredInputs.includes('date') && !row.date ? choice.date : row.date,
+        distance: row.requiredInputs && row.requiredInputs.includes('distance') && row.distance == null ?
+            (choice.distance === '' || choice.distance == null ? null : Number(choice.distance)) : row.distance
+    }
+}
+
+function validateRow(row, { allowMissing = false } = {}) {
     if (typeof row.skaterName !== 'string' || !row.skaterName.trim() || !['F', 'M'].includes(row.gender)) return 'IMPORT_INVALID_SKATER'
-    if (!row.date || !Number.isFinite(new Date(row.date).getTime())) return 'IMPORT_INVALID_DATE'
-    if (!row.race || !Number.isFinite(row.distance) || row.distance <= 0) return 'IMPORT_INVALID_RACE'
+    const missingDate = allowMissing && !row.date && row.requiredInputs && row.requiredInputs.includes('date')
+    const missingDistance = allowMissing && row.distance == null && row.requiredInputs && row.requiredInputs.includes('distance')
+    if (!missingDate && (!row.date || !Number.isFinite(new Date(row.date).getTime()))) return 'IMPORT_INVALID_DATE'
+    if (row.requiredInputs && row.requiredInputs.includes('date') && !missingDate &&
+        (typeof row.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.date) ||
+        new Date(row.date).toISOString().slice(0, 10) !== row.date)) return 'IMPORT_INVALID_DATE'
+    if (!row.race || !missingDistance && (!Number.isFinite(row.distance) || row.distance <= 0)) return 'IMPORT_INVALID_RACE'
+    if (Array.isArray(row.times) && !row.times.length) return 'IMPORT_MISSING_TIMES'
     if (!Array.isArray(row.times) || !row.times.length ||
         row.times.some(t => !Number.isFinite(t) || t <= 0)) return 'IMPORT_INVALID_TIMES'
     if (row.totalTime != null && (!Number.isFinite(row.totalTime) ||
@@ -30,4 +45,4 @@ function validateRow(row) {
     return null
 }
 
-module.exports = { normalize, candidatesFor, validateRow }
+module.exports = { normalize, candidatesFor, validateRow, completeRow }

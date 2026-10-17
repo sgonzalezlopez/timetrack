@@ -37,8 +37,22 @@
                     $('<label class="d-block mb-2">').text(`${row.inputCategory || '—'}: `).append(control));
             }
             const tr = $('<tr>');
-            tr.append($('<td>').text(row.index + 2), $('<td>').text(`${row.skaterName} (${row.gender})`),
-                $('<td>').text(row.race));
+            tr.append($('<td>').text(row.sourceLocation || row.index + 2), $('<td>').text(`${row.skaterName} (${row.gender})`));
+            const raceCell = $('<td>').text(row.race);
+            const requiredInputs = row.requiredInputs || [];
+            let date, distance;
+            if (!row.issue && requiredInputs.includes('date') && !row.date) {
+                date = $('<input type="date" class="form-control form-control-sm">')
+                    .attr('aria-label', text('IMPORT_DATE'));
+                raceCell.append($('<label class="d-block mt-2">').text(text('IMPORT_DATE')).append(date));
+                if (row.dateText) raceCell.append($('<small>').text(row.dateText));
+            }
+            if (!row.issue && requiredInputs.includes('distance') && row.distance == null) {
+                distance = $('<input type="number" min="0.001" step="any" class="form-control form-control-sm">')
+                    .attr('aria-label', text('IMPORT_DISTANCE'));
+                raceCell.append($('<label class="d-block mt-2">').text(text('IMPORT_DISTANCE')).append(distance));
+            }
+            tr.append(raceCell);
             const actionOptions = [['skip', text('IMPORT_SKIP')]];
             if (!row.issue) {
                 if (!row.duplicate) actionOptions.push(['import', text('IMPORT_SAVE')]);
@@ -57,7 +71,7 @@
             if (row.competitionMismatch) messages.push('IMPORT_COMPETITION_MISMATCH');
             tr.append($('<td>').append(action, skaters),
                 $('<td>').text(messages.map(text).join(' · ')));
-            rowSelectors.push({ action, skaters });
+            rowSelectors.push({ action, skaters, date, distance });
             $('#RegistryImportRows').append(tr);
         }
         $('#RegistryImportReview').prop('hidden', false);
@@ -100,10 +114,18 @@
         $('#RegistryImportError').prop('hidden', true);
         const choices = preview.rows.map((row, i) => ({
             action: rowSelectors[i].action.val(), skaterId: rowSelectors[i].skaters.val(),
-            category: row.category || categorySelectors.get(row.inputCategory) && categorySelectors.get(row.inputCategory).val()
+            category: row.category || categorySelectors.get(row.inputCategory) && categorySelectors.get(row.inputCategory).val(),
+            date: rowSelectors[i].date && rowSelectors[i].date.val(),
+            distance: rowSelectors[i].distance && rowSelectors[i].distance.val()
         }));
         if (choices.some((c, i) => c.action !== 'skip' && !preview.rows[i].issue && (!c.skaterId || !c.category))) {
             showError(text('IMPORT_CHOOSE'));
+            return;
+        }
+        if (choices.some((c, i) => c.action !== 'skip' && !preview.rows[i].issue &&
+            (rowSelectors[i].date && !c.date ||
+                rowSelectors[i].distance && (!c.distance || !Number.isFinite(Number(c.distance)) || Number(c.distance) <= 0)))) {
+            showError(text('IMPORT_MISSING_FIELDS'));
             return;
         }
         if (choices.some(c => c.action === 'replace') && !window.confirm(text('IMPORT_CONFIRM_REPLACE'))) return;

@@ -7,6 +7,13 @@ Cada adaptador proporciona `id`, `label`, `extensions` y `async parse(buffer)`, 
 `skaterName`, `gender` (F/M), `country`, `date`, `competitionName`, `race`, `distance`,
 `rail`, `starting`, `category`, `clubName`, `times` (parciales en milisegundos),
 `totalTime` opcional, `status` opcional, `team`, `source` y `externalReference`.
+Un adaptador puede incluir `requiredInputs: ['date', 'distance']` (o uno de ellos) cuando
+el documento no publica el dia exacto o la distancia. Debe dejar esos campos como `null`.
+La revision pide cada valor en cada fila de forma independiente, sin valores heredados.
+El cliente envia `date` (YYYY-MM-DD) y `distance` (metros) en la seleccion correspondiente.
+El servidor vuelve a validarlos antes de escribir y no permite alterar campos ya publicados.
+`dateText` puede mostrar la fecha original como ayuda; `sourceLocation` identifica pagina y dorsal
+en la revision y en el informe. Las filas sin tiempo se omiten con el motivo correspondiente.
 Si un formato solo proporciona tiempo total, el adaptador lo devuelve como `times: [totalTime]`;
 el modelo calcula el total sumando los parciales.
 No se utilizan IDs de patinador externos ni puestos. Los formatos especificos pertenecen
@@ -35,6 +42,34 @@ El informe separa importados, omitidos, errores y patinadores creados. El guarda
 un fallo no revierte filas anteriores, y los patinadores creados se incluyen aunque su resultado falle.
 Los nuevos patinadores usan la primera palabra como nombre y el resto como apellidos
 (`-` si no hay apellidos); no se inventa fecha de nacimiento. Revisar estos datos manualmente.
+
+### Formatos de Inline TimeTrack
+
+La aplicacion `inlinetimetrack` registra `PRUEBA_FMP` y `GENERAL_FMP` para PDF de texto
+de la Federacion Madrilena de Patinaje. Los dos comparten el lector de tablas FMP
+(cabeceras de competicion, categoria, fecha y prueba; columnas de nombre, club y tiempos).
+Se recorren todas las paginas, con un limite de 100. PDF escaneados sin texto o estructuras
+no reconocidas producen un error explicito; no se intenta OCR ni se inventan marcas.
+
+El carril queda vacio. El tiempo total publicado se guarda como unico parcial.
+No se utilizan puestos, puntos ni velocidad; errores de calculo en la columna de velocidad
+no invalidan un tiempo publicado. DNF/DNS/DQ/DSQ se omiten; FS no es una descalificacion.
+Una fecha de varios dias requiere elegir el dia en cada registro. Una prueba sin distancia
+numerica requiere introducirla para cada patinador, sin heredar la respuesta anterior.
+`source` es FMP y la referencia se deriva del evento, fecha publicada, categoria, prueba,
+dorsal y nombre, compartida entre ambos formatos para detectar resultados repetidos.
+El lector requiere Node.js 20 o superior (`pdfjs-dist`); los cambios de dependencias
+y registro de formatos se hacen en la aplicacion consumidora, no en sus submodulos.
+
+Tambien se registran `PRUEBA_RFEP` y `GENERAL_RFEP` para PDF de texto RFEP con cabeceras
+bilingues. PRUEBA_RFEP toma solo la primera clasificacion (incluyendo sus paginas de
+continuacion), sin listas de salida ni clasificaciones posteriores. GENERAL_RFEP toma
+todas las clasificaciones excepto la ultima tabla. No se importan puntos ni puestos.
+Se convierte `APELLIDOS, NOMBRE` a `NOMBRE APELLIDOS`; las fechas como `5-sep.-26`
+se leen como 2026-09-05 y los tiempos `h:mm:ss,mil` se guardan como unico parcial.
+El carril queda vacio. Resultados sin tiempo y descalificados se detallan como omitidos.
+La fuente es RFEP y las referencias son estables entre los dos formatos para detectar
+reimportaciones de la misma prueba, fecha, evento, categoria y patinador.
 
 ## Consulta externa
 

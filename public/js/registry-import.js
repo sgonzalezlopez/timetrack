@@ -7,7 +7,14 @@
     const categorySelectors = new Map();
     const rowSelectors = [];
     const modal = () => bootstrap.Modal.getOrCreateInstance(document.getElementById('RegistryImportModal'));
-    const showError = message => $('#RegistryImportError').text(message).prop('hidden', false);
+    function reveal(element) {
+        element[0].scrollIntoView({ block: 'center' });
+        element[0].focus({ preventScroll: true });
+    }
+    function showError(message) {
+        const alert = $('#RegistryImportError').text(message).prop('hidden', false);
+        reveal(alert);
+    }
     function setBusy(value) {
         busy = value;
         $('#RegistryImportForm :input, #RegistryImportCommit').prop('disabled', value);
@@ -118,8 +125,18 @@
             date: rowSelectors[i].date && rowSelectors[i].date.val(),
             distance: rowSelectors[i].distance && rowSelectors[i].distance.val()
         }));
-        if (choices.some((c, i) => c.action !== 'skip' && !preview.rows[i].issue && (!c.skaterId || !c.category))) {
-            showError(text('IMPORT_CHOOSE'));
+        const incomplete = choices.findIndex((c, i) =>
+            c.action !== 'skip' && !preview.rows[i].issue && (!c.skaterId || !c.category));
+        if (incomplete !== -1) {
+            const row = preview.rows[incomplete];
+            showError(`${text('IMPORT_CHOOSE')} (${row.sourceLocation || row.index + 2}: ${row.skaterName})`);
+            const control = !choices[incomplete].category ?
+                categorySelectors.get(row.inputCategory) : rowSelectors[incomplete].skaters;
+            control.attr('aria-invalid', 'true');
+            return;
+        }
+        if (!choices.some(c => c.action !== 'skip')) {
+            showError(text('IMPORT_NOTHING_SELECTED'));
             return;
         }
         if (choices.some((c, i) => c.action !== 'skip' && !preview.rows[i].issue &&
@@ -149,6 +166,7 @@
             }
             preview = null;
             $('#RegistryImportReview').prop('hidden', true);
+            reveal(output);
         } catch (err) { showError(err.responseJSON && err.responseJSON.message || text('IMPORT_ERROR')); }
         finally { setBusy(false); }
     });

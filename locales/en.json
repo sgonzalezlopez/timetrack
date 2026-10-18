@@ -458,6 +458,7 @@
     "IMPORT_CREATED": "Created skaters",
     "IMPORT_COMPETITION_MISMATCH": "File event name differs from the destination event.",
     "IMPORT_CHOOSE": "Select a skater and category for every row to import.",
+    "IMPORT_NOTHING_SELECTED": "All rows are set to Skip. Select Import for the rows to save and choose their skater. To create new skaters, check the box and read the file again.",
     "IMPORT_EXPIRED": "Review expired, already used or busy. Read the file again.",
     "IMPORT_INVALID_CHOICES": "Invalid import selections.",
     "IMPORT_ACCESS_CHANGED": "The record is no longer available or accessible."

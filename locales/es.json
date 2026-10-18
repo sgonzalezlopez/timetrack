@@ -296,6 +296,7 @@
   "IMPORT_CREATED": "Patinadores creados",
   "IMPORT_COMPETITION_MISMATCH": "El nombre del evento del fichero difiere del evento de destino.",
   "IMPORT_CHOOSE": "Selecciona patinador y categoría en todas las filas que deseas importar.",
+  "IMPORT_NOTHING_SELECTED": "Todas las filas están en Omitir. Selecciona Importar en las filas que quieras guardar y elige su patinador. Para crear patinadores nuevos, marca la casilla y vuelve a Leer y revisar.",
   "IMPORT_EXPIRED": "Revisión caducada, ya utilizada o en curso. Vuelve a leer el fichero.",
   "IMPORT_INVALID_CHOICES": "Selecciones de importación no válidas.",
   "IMPORT_ACCESS_CHANGED": "El registro ya no está disponible o no tienes acceso."

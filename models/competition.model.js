@@ -18,6 +18,10 @@ const CompetitionSchema = mongoose.Schema({
     season : {
         type : String,
     },
+    importCompetitionName: {
+        type: String,
+        hideInForm: true,
+    },
     training : {
         type : Boolean,
         default : false,
@@ -42,6 +46,10 @@ CompetitionSchema.virtual('fullname')
     return `${this.name} - ${moment(this.date).format('L')} (${this.track ? this.track.name : ''})`;
 });
 
+CompetitionSchema.index({ importCompetitionName: 1, track: 1, season: 1, training: 1 }, {
+    unique: true,
+    partialFilterExpression: { importCompetitionName: { $type: 'string' } }
+});
+
 // exporting module to allow it to be imported in other files
 module.exports = mongoose.model('Competition', CompetitionSchema);
-

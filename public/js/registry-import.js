@@ -4,7 +4,10 @@
     let preview = null;
     let busy = false;
     let competitionId = null;
+    let importBase = null;
     const categorySelectors = new Map();
+    const trackSelectors = new Map();
+    const duplicateSelectors = new Map();
     const rowSelectors = [];
     const modal = () => bootstrap.Modal.getOrCreateInstance(document.getElementById('RegistryImportModal'));
     function reveal(element) {
@@ -17,7 +20,7 @@
     }
     function setBusy(value) {
         busy = value;
-        $('#RegistryImportForm :input, #RegistryImportCommit').prop('disabled', value);
+        $('#RegistryImportForm :input, #RegistryImportCommit, #RegistryImportDuplicates select').prop('disabled', value);
         $('#RegistryImportModal [data-bs-dismiss]').prop('disabled', value);
     }
     function request(url, data, multipart) {
@@ -31,12 +34,64 @@
         for (const [value, name] of options) control.append($('<option>').val(value).text(name));
         return control;
     }
+    function reviewDuplicates(conflicts) {
+        const panel = $('#RegistryImportDuplicates').prop('hidden', false);
+        if (!duplicateSelectors.size) panel.empty().append($('<h6>').text(text('IMPORT_DUPLICATE_REVIEW')));
+        for (const conflict of conflicts) {
+            if (duplicateSelectors.has(conflict.index)) duplicateSelectors.get(conflict.index).section.remove();
+            const section = $('<div class="mb-3">').append($('<strong>').text(
+                `${conflict.row}: ${conflict.incoming.name} · ${conflict.eventName || ''}`));
+            if (conflict.hidden) section.append($('<p>').text(text('IMPORT_DUPLICATE_HIDDEN')));
+            const table = $('<table class="table table-sm table-bordered">');
+            const header = $('<tr>').append($('<th>'), $('<th>').text(text('IMPORT_INCOMING')));
+            for (const existing of conflict.existing) header.append($('<th>').text(
+                existing.fromFile ? `${text('IMPORT_IN_FILE')} ${existing.row}` : `${text('IMPORT_EXISTING')} (${existing.id})`));
+            table.append($('<thead>').append(header));
+            const body = $('<tbody>');
+            for (const [field, label] of [
+                ['name', 'MODEL_Skater'], ['clubName', 'COL_club'],
+                ['date', 'IMPORT_DATE'], ['race', 'COL_race'], ['distance', 'COL_distance'],
+                ['totalTime', 'COL_totalTime'], ['times', 'IMPORT_SPLITS'], ['category', 'COL_category'],
+                ['rail', 'COL_rail'], ['starting', 'COL_starting'], ['source', 'IMPORT_SOURCE'],
+                ['externalReference', 'IMPORT_REFERENCE']
+            ]) {
+                const tr = $('<tr>').append($('<th>').text(text(label)));
+                for (const record of [conflict.incoming, ...conflict.existing]) {
+                    let value = record[field];
+                    if (field === 'date' && value) value = value.slice(0, 10);
+                    if (field === 'times') value = (value || []).join(', ');
+                    if ((field === 'times' || field === 'totalTime') && value != null && value !== '') value = `${value} ms`;
+                    tr.append($('<td>').text(value == null ? '' : String(value)));
+                }
+                body.append(tr);
+            }
+            section.append($('<div class="table-responsive">').append(table.append(body)));
+            const action = select([['', text('IMPORT_SELECT')], ['skip', text('IMPORT_SKIP')],
+                ...(conflict.replaceable.length ? [['replace', text('IMPORT_REPLACE')]] : []),
+                ...(conflict.canKeep ? [['keep', text('IMPORT_KEEP_DISTINCT')]] : [])], text('IMPORT_DUPLICATE_DECISION'));
+            const existing = select(conflict.replaceable.map(id => [id, id]), text('IMPORT_EXISTING')).prop('hidden', true);
+            action.on('change', () => existing.prop('hidden', action.val() !== 'replace'));
+            duplicateSelectors.set(conflict.index, { action, existing, token: conflict.token, section });
+            panel.append(section.append(action, existing));
+        }
+        reveal(panel);
+    }
     function review(result) {
         preview = result;
         categorySelectors.clear();
+        trackSelectors.clear();
+        duplicateSelectors.clear();
+        $('#RegistryImportDuplicates').prop('hidden', true);
         rowSelectors.length = 0;
-        $('#RegistryImportCategories, #RegistryImportRows').empty();
+        $('#RegistryImportCategories, #RegistryImportRows, #RegistryImportTracks').empty();
         for (const row of result.rows) {
+            if (row.destination && row.destination.needsTrack && !row.issue && !trackSelectors.has(row.trackName || '')) {
+                const control = select([['', text('IMPORT_SELECT')],
+                    ...result.tracks.map(t => [t.id, `${t.name}${t.location ? ` (${t.location})` : ''}`])], text('IMPORT_TRACK'));
+                trackSelectors.set(row.trackName || '', control);
+                $('#RegistryImportTracks').append($('<label class="d-block mb-2">')
+                    .text(`${text('IMPORT_TRACK')}${row.trackName ? ` (${row.trackName})` : ''}: `).append(control));
+            }
             if (!row.category && !row.issue && !categorySelectors.has(row.inputCategory)) {
                 const control = select([['', text('IMPORT_SELECT')], ...result.categories.map(c => [c, c])], row.inputCategory);
                 categorySelectors.set(row.inputCategory, control);
@@ -59,14 +114,43 @@
                     .attr('aria-label', text('IMPORT_DISTANCE'));
                 raceCell.append($('<label class="d-block mt-2">').text(text('IMPORT_DISTANCE')).append(distance));
             }
+            if (row.destination) {
+                const destination = row.destination;
+                const description = $('<small class="d-block">');
+                const updateDestination = () => {
+                    const control = trackSelectors.get(row.trackName || '');
+                    const selected = control && result.tracks.find(t => t.id === control.val());
+                    const trackName = selected ? selected.name : destination.trackName || text('IMPORT_SELECT');
+                    let season = destination.season;
+                    if (date && date.val()) {
+                        const value = new Date(date.val());
+                        if (Number.isFinite(value.getTime())) {
+                            const year = value.getUTCFullYear();
+                            const start = result.seasonStartMonth;
+                            const first = value.getUTCMonth() + 1 < start ? year - 1 : year;
+                            season = start === 1 ? String(year) : `${first}-${first + 1}`;
+                        }
+                    }
+                    description.text(`${row.competitionName || ''} · ${trackName} · ${season || text('IMPORT_SEASON_PENDING')}`);
+                };
+                const control = trackSelectors.get(row.trackName || '');
+                if (control) control.on('change', updateDestination);
+                if (date) date.on('change', updateDestination);
+                updateDestination();
+                raceCell.append(description);
+                if (!destination.issue && !date) raceCell.append($('<small class="d-block">').text(
+                    `${text(destination.createEvent ? 'IMPORT_EVENT_NEW' : 'IMPORT_EVENT_EXISTING')}: ${destination.name}` +
+                    (destination.createTrack ? ` · ${text('IMPORT_TRACK_NEW')}` : '')));
+            }
             tr.append(raceCell);
             const actionOptions = [['skip', text('IMPORT_SKIP')]];
             if (!row.issue) {
-                if (!row.duplicate) actionOptions.push(['import', text('IMPORT_SAVE')]);
-                else if (row.duplicateId) actionOptions.push(['replace', text('IMPORT_REPLACE')]);
+                if (!row.duplicate || row.duplicateId) actionOptions.push(['import', text('IMPORT_SAVE')]);
+                if (row.duplicateId) actionOptions.push(['replace', text('IMPORT_REPLACE')]);
             }
             const action = select(actionOptions, text('IMPORT_SAVE'));
-            if (!row.issue && !row.duplicate && (row.automaticSkater || !row.candidates.length && result.createSkaters)) action.val('import');
+            if (!row.issue && (!row.duplicate || row.duplicateId) &&
+                (row.automaticSkater || !row.candidates.length && result.createSkaters)) action.val('import');
             const skaters = select([['', text('IMPORT_SELECT')],
                 ...row.candidates.map(c => [c.id, `${c.name} | ${c.birthDate ? c.birthDate.slice(0, 10) : '—'} | ${c.category || '—'}`]),
                 ...(result.createSkaters ? [['new', text('IMPORT_NEW')]] : [])], row.skaterName);
@@ -85,16 +169,20 @@
     }
     $(document).on('click', '#RegistryImport_open', async function () {
         if (busy) return;
-        competitionId = $('#CompetitionForm #id').val();
-        if (!competitionId) return;
+        const registryScope = $(this).attr('data-import-scope') === 'registry';
+        competitionId = registryScope ? null : $('#CompetitionForm #id').val();
+        if (!registryScope && !competitionId) return;
+        importBase = registryScope ? '/api/registry' : `/api/competition/${competitionId}`;
         preview = null;
+        duplicateSelectors.clear();
+        $('#RegistryImportDuplicates').prop('hidden', true);
         $('#RegistryImportForm')[0].reset();
         $('#RegistryImportReview, #RegistryImportReport, #RegistryImportError').prop('hidden', true);
         $('#RegistryImportFormat').empty();
         modal().show();
         setBusy(true);
         try {
-            const formats = await $.getJSON('/api/competition/import-formats');
+            const formats = await $.getJSON(registryScope ? '/api/registry/import-formats' : '/api/competition/import-formats');
             for (const format of formats) $('#RegistryImportFormat').append(
                 $('<option>').val(format.id).text(format.label).attr('data-extensions', format.extensions.join(',')));
             $('#RegistryImportFormat').trigger('change');
@@ -112,7 +200,7 @@
         data.set('createSkaters', String($('#RegistryImportCreate').prop('checked')));
         $('#RegistryImportError, #RegistryImportReview, #RegistryImportReport').prop('hidden', true);
         setBusy(true);
-        try { review(await request(`/api/competition/${competitionId}/import/preview`, data, true)); }
+        try { review(await request(`${importBase}/import/preview`, data, true)); }
         catch (err) { showError(err.responseJSON && err.responseJSON.message || text('IMPORT_ERROR')); }
         finally { setBusy(false); }
     });
@@ -123,8 +211,21 @@
             action: rowSelectors[i].action.val(), skaterId: rowSelectors[i].skaters.val(),
             category: row.category || categorySelectors.get(row.inputCategory) && categorySelectors.get(row.inputCategory).val(),
             date: rowSelectors[i].date && rowSelectors[i].date.val(),
-            distance: rowSelectors[i].distance && rowSelectors[i].distance.val()
+            distance: rowSelectors[i].distance && rowSelectors[i].distance.val(),
+            trackId: trackSelectors.get(row.trackName || '') && trackSelectors.get(row.trackName || '').val(),
+            duplicateAction: duplicateSelectors.get(i) && duplicateSelectors.get(i).action.val(),
+            duplicateId: duplicateSelectors.get(i) && duplicateSelectors.get(i).existing.val(),
+            duplicateReviewToken: duplicateSelectors.get(i) && duplicateSelectors.get(i).token
         }));
+        if (choices.some((c, i) => c.action !== 'skip' && duplicateSelectors.has(i) && !c.duplicateAction)) {
+            showError(text('IMPORT_DUPLICATE_DECISION'));
+            return;
+        }
+        if (choices.some((c, i) => c.action !== 'skip' && !preview.rows[i].issue &&
+            preview.rows[i].destination && preview.rows[i].destination.needsTrack && !c.trackId)) {
+            showError(text('IMPORT_CHOOSE_TRACK'));
+            return;
+        }
         const incomplete = choices.findIndex((c, i) =>
             c.action !== 'skip' && !preview.rows[i].issue && (!c.skaterId || !c.category));
         if (incomplete !== -1) {
@@ -145,14 +246,14 @@
             showError(text('IMPORT_MISSING_FIELDS'));
             return;
         }
-        if (choices.some(c => c.action === 'replace') && !window.confirm(text('IMPORT_CONFIRM_REPLACE'))) return;
         setBusy(true);
         try {
-            const report = await request(`/api/competition/${competitionId}/import/commit`, { token: preview.token, choices });
+            const report = await request(`${importBase}/import/commit`, { token: preview.token, choices });
             const output = $('#RegistryImportReport').empty().prop('hidden', false);
             for (const [key, label] of [
                 ['imported', 'IMPORT_IMPORTED'], ['skipped', 'IMPORT_OMITTED'],
-                ['failed', 'IMPORT_FAILED'], ['createdSkaters', 'IMPORT_CREATED']
+                ['failed', 'IMPORT_FAILED'], ['createdSkaters', 'IMPORT_CREATED'],
+                ...(report.createdEvents ? [['createdEvents', 'IMPORT_CREATED_EVENTS'], ['createdTracks', 'IMPORT_CREATED_TRACKS']] : [])
             ]) {
                 const details = $('<details>').append($('<summary>').text(`${text(label)}: ${report[key].length}`));
                 const list = $('<ul>');
@@ -160,14 +261,19 @@
                     const notes = [...(row.warnings || [])];
                     if (row.reason) notes.push(row.reason);
                     if (row.categorySubstituted) notes.push('IMPORT_CATEGORY_SUBSTITUTED');
-                    list.append($('<li>').text(`${row.row}: ${row.name}${row.category ? ` → ${row.category}` : ''} ${notes.map(text).join(' · ')}`));
+                    list.append($('<li>').text(`${row.row}: ${row.name}${row.category ? ` → ${row.category}` : ''}` +
+                        `${row.season ? ` (${row.season})` : ''} ${notes.map(text).join(' · ')}`));
                 }
                 output.append(details.append(list));
             }
             preview = null;
             $('#RegistryImportReview').prop('hidden', true);
             reveal(output);
-        } catch (err) { showError(err.responseJSON && err.responseJSON.message || text('IMPORT_ERROR')); }
+            if (!competitionId) $('#RegistryForm_search_btn').trigger('click');
+        } catch (err) {
+            if (err.responseJSON && err.responseJSON.code === 'IMPORT_DUPLICATE_REVIEW') reviewDuplicates(err.responseJSON.conflicts);
+            else showError(err.responseJSON && err.responseJSON.message || text('IMPORT_ERROR'));
+        }
         finally { setBusy(false); }
     });
     $(document).on('hide.bs.modal', '#RegistryImportModal', function (event) {

@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 const { normalize, candidatesFor, validateRow, completeRow } = require('../utils/registry-import')
+const { seasonFor, destinationFor } = require('../utils/registry-import-events')
 
 const row = () => ({
     skaterName: 'Ona Rodríguez Cornejo', gender: 'F', date: '2026-10-17',
@@ -36,18 +37,53 @@ test('validates times, dates, names and distances without inventing zero times',
 
 function harness(input, options = {}) {
     const writes = [], records = options.records || []
+    const tracks = options.tracks || []
+    const competitions = options.competitions || []
+    function upsert(collection, kind, query, update) {
+        let value = collection.find(item => Object.entries(query).every(([key, expected]) => item[key] === expected))
+        const updatedExisting = !!value
+        if (!value) {
+            value = { ...query, ...update.$setOnInsert, _id: `${kind}-${collection.length + 1}` }
+            collection.push(value)
+            writes.push([kind, value])
+        }
+        return { value, lastErrorObject: { updatedExisting } }
+    }
     const skaters = options.skaters || [{ _id: 'skater-1', name: 'Ona', lastname: 'Rodriguez Cornejo', gender: 'F' }]
     const categories = [{ name: 'LA2' }, { name: 'Other' }]
     const club = { _id: 'club-1', name: options.unknownClub ? 'UNKNOWN' : 'RFEDH' }
     const models = {
         '../models/registry.model': {
-            find: async query => records.filter(r => r.source === query.source && r.externalReference === query.externalReference),
-            create: async values => { writes.push(['registry', values]); records.push({ ...values, _id: 'new-registry' }) },
-            findOneAndUpdate: async (query, values) => { writes.push(['replace', values.$set]); return values.$set }
+            find: async query => {
+                if (options.beforeFind) options.beforeFind(query, records)
+                return records.filter(r => Object.entries(query).every(([key, expected]) => {
+                    if (key === '_id' && expected.$in) return expected.$in.includes(r._id)
+                    if (key === 'date') return new Date(r.date) >= expected.$gte && new Date(r.date) < expected.$lt
+                    return r[key] === expected
+                }))
+            },
+            create: async values => {
+                writes.push(['registry', values])
+                const saved = { ...values, _id: `new-registry-${records.length}` }
+                records.push(saved)
+                return saved
+            },
+            findOneAndUpdate: async (query, values) => {
+                writes.push(['replace', values.$set])
+                const saved = records.find(r => r._id === query._id)
+                Object.assign(saved, values.$set)
+                return saved
+            }
         },
         '../models/competition.model': {
             findById: async () => ({ _id: 'event-1', name: 'Holland Cup 1' }),
-            exists: async () => true
+            exists: async () => true,
+            find: async () => [...competitions],
+            findOneAndUpdate: async (query, update) => upsert(competitions, 'event', query, update)
+        },
+        '../models/track.model': {
+            find: async () => [...tracks],
+            findOneAndUpdate: async (query, update) => upsert(tracks, 'track', query, update)
         },
         '../models/skater.model': {
             find: async () => skaters, exists: async () => true,
@@ -58,7 +94,10 @@ function harness(input, options = {}) {
             findOneAndUpdate: async () => { writes.push(['club']); return club }
         },
         '../models/category.model': { find: async () => categories },
-        '../middlewares/data.filter': { getFilter: (_entity, query) => query },
+        '../middlewares/data.filter': {
+            getFilter: (entity, query) => entity === 'Registry' && options.hiddenRecords ?
+                { ...query, club: 'club-1' } : query
+        },
         '../utils/registry-import': { normalize, candidatesFor, validateRow, completeRow }
     }
     const exports = {}
@@ -68,16 +107,19 @@ function harness(input, options = {}) {
             { getPermissionsForEntity: async entity => options.permissions && options.permissions[entity] || ['C', 'R', 'U'] } : require(name))
     })
     const req = {
-        user: { id: 'user-1' }, params: { id: 'event-1' },
+        user: { id: 'user-1' }, params: options.registryScope ? {} : { id: 'event-1' },
         body: { format: 'test', createSkaters: options.createSkaters ? 'true' : 'false' },
         files: { file: { name: 'test.xlsx', size: 100, data: Buffer.from('test') } },
-        app: { locals: { registryImportFormats: [{ id: 'test', label: 'Test', extensions: ['.xlsx'], parse: async () => input }] } }
+        app: { locals: {
+            registryImportSeasonStartMonth: options.startMonth || 1,
+            registryImportFormats: [{ id: 'test', label: 'Test', extensions: ['.xlsx'], parse: async () => input }]
+        } }
     }
     let result, status
     const res = { __: s => s, status: n => { status = n; return res }, send: value => { result = value; return res } }
     const next = err => { throw err }
     return {
-        writes, req,
+        writes, req, tracks, competitions, records,
         preview: async () => { await exports.preview(req, res, next); return { result, status } },
         commit: async (token, choices) => {
             result = undefined; status = undefined
@@ -87,6 +129,182 @@ function harness(input, options = {}) {
         }
     }
 }
+
+test('infers ice and inline seasons at exact boundaries from the result date', () => {
+    for (const [date, ice, inline] of [
+        ['2024-02-02', '2023-2024', '2024'],
+        ['2024-06-30T23:59:59.999Z', '2023-2024', '2024'],
+        ['2024-07-01T00:00:00.000Z', '2024-2025', '2024'],
+        ['2024-12-31', '2024-2025', '2024'],
+        ['2025-01-01', '2024-2025', '2025']
+    ]) {
+        assert.equal(seasonFor(date, 7), ice)
+        assert.equal(seasonFor(date, 1), inline)
+    }
+    assert.equal(seasonFor(null, 7), null)
+    assert.equal(seasonFor('not a date', 1), null)
+})
+
+const eventRow = overrides => ({
+    ...row(), competitionName: 'Holland Cup', trackName: 'Thialf', date: '2024-02-02', ...overrides
+})
+const trackFixture = () => [{ _id: 'track-1', name: 'Thialf' }]
+const eventFixture = () => [{
+    _id: 'event-1', name: 'Holland Cup', track: 'track-1', season: '2023-2024', training: false
+}]
+const importChoice = overrides => ({ action: 'import', skaterId: 'skater-1', category: 'LA2', ...overrides })
+
+test('registry preview has no writes and resolves the correct existing event', async () => {
+    const events = eventFixture()
+    events.push(
+        { ...events[0], _id: 'training', training: true },
+        { ...events[0], _id: 'other-season', season: '2024-2025' },
+        { ...events[0], _id: 'other-track', track: 'track-2' },
+        { ...events[0], _id: 'other-name', name: 'Other' })
+    const h = harness([eventRow()], {
+        registryScope: true, startMonth: 7, tracks: trackFixture(), competitions: events
+    })
+    const { result: preview } = await h.preview()
+    assert.equal(h.writes.length, 0)
+    assert.equal(preview.rows[0].destination.competitionId, 'event-1')
+    assert.equal(preview.rows[0].destination.season, '2023-2024')
+    const { result: report } = await h.commit(preview.token, [importChoice()])
+    assert.equal(report.imported.length, 1)
+    assert.equal(report.createdEvents.length, 0)
+    assert.equal(h.writes[0][1].competition, 'event-1')
+})
+
+test('creates a named track and one non-training event, using the first imported date, not the earliest date', async () => {
+    const h = harness([
+        eventRow({ date: '2024-02-01', externalReference: 'skip' }),
+        eventRow({ date: '2024-02-20', externalReference: 'first' }),
+        eventRow({ date: '2024-02-02', externalReference: 'second' })
+    ], { registryScope: true, startMonth: 7 })
+    const { result: preview } = await h.preview()
+    assert.equal(h.writes.length, 0)
+    assert.equal(preview.rows[0].destination.createTrack, true)
+    const { result: report } = await h.commit(preview.token, [
+        { action: 'skip' }, importChoice(), importChoice()
+    ])
+    assert.equal(report.createdTracks.length, 1)
+    assert.equal(report.createdEvents.length, 1)
+    assert.equal(report.imported.length, 2)
+    const event = h.writes.find(w => w[0] === 'event')[1]
+    assert.equal(event.name, 'Thialf')
+    assert.equal(event.date, '2024-02-20')
+    assert.equal(event.training, false)
+    assert.equal(event.season, '2023-2024')
+    assert.equal(event.importCompetitionName, 'holland cup')
+    assert.equal(h.writes.filter(w => w[0] === 'registry').every(w => w[1].competition === event._id), true)
+    const again = harness([eventRow({ externalReference: 'third' })], {
+        registryScope: true, startMonth: 7, tracks: h.tracks, competitions: h.competitions
+    })
+    const { result: nextPreview } = await again.preview()
+    assert.equal(nextPreview.rows[0].destination.competitionId, event._id)
+    assert.equal((await again.commit(nextPreview.token, [importChoice()])).result.createdEvents.length, 0)
+})
+
+test('different file competitions, tracks and seasons produce separate events', async () => {
+    const h = harness([
+        eventRow(),
+        eventRow({ competitionName: 'Other Cup', externalReference: 'other-cup' }),
+        eventRow({ date: '2024-07-01', externalReference: 'other-season' }),
+        eventRow({ trackName: 'Other Track', externalReference: 'other-track' })
+    ], { registryScope: true, startMonth: 7 })
+    const { result: preview } = await h.preview()
+    const { result: report } = await h.commit(preview.token, preview.rows.map(() => importChoice()))
+    assert.equal(report.createdTracks.length, 2)
+    assert.equal(report.createdEvents.length, 4)
+    assert.equal(report.imported.length, 4)
+    assert.deepEqual(h.competitions.map(c => c.season), ['2023-2024', '2023-2024', '2024-2025', '2023-2024'])
+})
+
+test('inline events use the calendar year and missing tracks require a valid existing selection', async () => {
+    const h = harness([eventRow({ trackName: '' })], { registryScope: true, tracks: trackFixture() })
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].destination.needsTrack, true)
+    assert.equal((await h.commit(preview.token, [importChoice()])).result.message, 'IMPORT_CHOOSE_TRACK')
+    assert.equal((await h.commit(preview.token, [importChoice({ trackId: 'forged' })])).status, 400)
+    assert.equal(h.writes.length, 0)
+    const { result: report } = await h.commit(preview.token, [importChoice({ trackId: 'track-1' })])
+    assert.equal(report.imported.length, 1)
+    assert.equal(report.createdTracks.length, 0)
+    assert.equal(h.competitions[0].season, '2024')
+    assert.equal(h.competitions[0].track, 'track-1')
+})
+
+test('missing row dates are resolved before inferring the event season', async () => {
+    const h = harness([eventRow({ date: null, requiredInputs: ['date'] })], {
+        registryScope: true, startMonth: 7, tracks: trackFixture()
+    })
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].destination.season, null)
+    const { result } = await h.commit(preview.token, [importChoice({ date: '2024-02-02' })])
+    assert.equal(result.imported.length, 1)
+    assert.equal(h.competitions[0].season, '2023-2024')
+})
+
+test('does not invent missing competition names or choose ambiguous events or tracks', async () => {
+    const tracks = trackFixture(), competitions = eventFixture()
+    assert.equal(destinationFor(eventRow({ competitionName: '' }), null, tracks, competitions, 7).issue,
+        'IMPORT_MISSING_COMPETITION')
+    assert.equal(destinationFor(eventRow(), null, tracks, [...competitions, { ...competitions[0], _id: 'second' }], 7).issue,
+        'IMPORT_AMBIGUOUS_EVENT')
+    assert.equal(destinationFor(eventRow(), null, [...tracks, { ...tracks[0], _id: 'second' }], competitions, 7).needsTrack, true)
+    const h = harness([eventRow({ competitionName: '' })], { registryScope: true })
+    const { result: preview } = await h.preview()
+    const { result: report } = await h.commit(preview.token, [importChoice()])
+    assert.equal(report.skipped[0].reason, 'IMPORT_MISSING_COMPETITION')
+    assert.equal(h.writes.length, 0)
+})
+
+test('checks event and track creation permissions before writing any rows', async () => {
+    for (const entity of ['competition', 'track']) {
+        const h = harness([eventRow()], { registryScope: true, permissions: { [entity]: ['R'] } })
+        const { result: preview } = await h.preview()
+        assert.equal((await h.commit(preview.token, [importChoice()])).status, 403)
+        assert.equal(h.writes.length, 0)
+    }
+    const h = harness([eventRow()], {
+        registryScope: true, startMonth: 7, tracks: trackFixture(), competitions: eventFixture(),
+        permissions: { competition: ['R'], track: ['R'] }
+    })
+    const { result: preview } = await h.preview()
+    assert.equal((await h.commit(preview.token, [importChoice()])).result.imported.length, 1)
+})
+
+test('registry and event preview tokens cannot be exchanged between endpoints', async () => {
+    for (const registryScope of [true, false]) {
+        const h = harness([eventRow()], { registryScope })
+        const { result: preview } = await h.preview()
+        h.req.params = registryScope ? { id: 'event-1' } : {}
+        assert.equal((await h.commit(preview.token, [importChoice()])).status, 409)
+        assert.equal(h.writes.length, 0)
+    }
+})
+
+test('registry imports replace duplicates only in the matching existing event with explicit consent', async () => {
+    for (const competition of ['event-1', 'other-event']) {
+        const h = harness([eventRow()], {
+            registryScope: true, startMonth: 7, tracks: trackFixture(), competitions: eventFixture(),
+            records: [{ _id: 'existing', source: row().source, externalReference: row().externalReference, competition }]
+        })
+        const { result: preview } = await h.preview()
+        assert.equal(preview.rows[0].duplicateId, competition === 'event-1' ? 'existing' : null)
+        assert.equal((await h.commit(preview.token, [importChoice()])).status, competition === 'event-1' ? 409 : 400)
+        assert.equal(h.writes.length, 0)
+        if (competition === 'event-1') {
+            const { result: conflict } = await h.commit(preview.token, [importChoice({ action: 'replace' })])
+            assert.equal(conflict.code, 'IMPORT_DUPLICATE_REVIEW')
+            assert.equal(h.writes.length, 0)
+            assert.equal((await h.commit(preview.token, [importChoice({
+                action: 'replace', duplicateAction: 'replace', duplicateId: 'existing',
+                duplicateReviewToken: conflict.conflicts[0].token
+            })])).result.imported.length, 1)
+            assert.equal(h.writes[0][0], 'replace')
+        }
+    }
+})
 
 test('preview performs no writes and commit imports selected event; token cannot be replayed', async () => {
     const h = harness([row()])
@@ -115,7 +333,7 @@ test('unknown categories require explicit valid selection before any writes', as
 })
 
 test('ambiguous names require selection; unknown club uses UNKNOWN; new skater is reused', async () => {
-    const h = harness([row(), { ...row(), externalReference: 'source-row-2' }], {
+    const h = harness([row(), { ...row(), date: '2026-10-18', externalReference: 'source-row-2' }], {
         skaters: [], createSkaters: true, unknownClub: true
     })
     const { result: preview } = await h.preview()
@@ -143,9 +361,16 @@ test('duplicates are never inserted or overwritten without explicit replace', as
     const h = harness([row()], { records: [record] })
     const { result: preview } = await h.preview()
     assert.equal(preview.rows[0].duplicate, true)
-    assert.equal((await h.commit(preview.token, [{ action: 'import', category: 'LA2' }])).status, 400)
+    assert.equal((await h.commit(preview.token, [{ action: 'import', category: 'LA2' }])).status, 409)
     assert.equal(h.writes.length, 0)
-    const { result } = await h.commit(preview.token, [{ action: 'replace', category: 'LA2' }])
+    const { result: conflict } = await h.commit(preview.token, [{ action: 'replace', category: 'LA2' }])
+    assert.equal(conflict.code, 'IMPORT_DUPLICATE_REVIEW')
+    assert.equal(conflict.conflicts[0].canKeep, false)
+    assert.equal(h.writes.length, 0)
+    const { result } = await h.commit(preview.token, [{
+        action: 'replace', category: 'LA2', duplicateAction: 'replace', duplicateId: 'existing',
+        duplicateReviewToken: conflict.conflicts[0].token
+    }])
     assert.equal(result.imported[0].replaced, true)
     assert.equal(h.writes[0][0], 'replace')
 })
@@ -239,4 +464,150 @@ test('untimed PDF results stay in the report even when date and distance are mis
     assert.equal(result.skipped[0].reason, 'IMPORT_MISSING_TIMES')
     assert.equal(result.skipped[0].row, 'PDF 2 / 21')
     assert.equal(h.writes.length, 0)
+})
+
+const contentDuplicate = overrides => ({
+    ...row(), _id: 'existing', skater: 'skater-1', competition: 'event-1', club: 'club-1',
+    source: 'other-source', externalReference: 'other-reference', rail: 'O', ...overrides
+})
+
+test('content duplicates show old and incoming details and require a decision before any writes', async () => {
+    for (const action of ['skip', 'keep', 'replace']) {
+        const h = harness([row()], { records: [contentDuplicate()] })
+        const { result: preview } = await h.preview()
+        assert.equal(preview.rows[0].duplicate, false)
+        const { result: review, status } = await h.commit(preview.token, [importChoice()])
+        assert.equal(status, 409)
+        assert.equal(review.code, 'IMPORT_DUPLICATE_REVIEW')
+        assert.equal(h.writes.length, 0)
+        const conflict = review.conflicts[0]
+        assert.equal(conflict.incoming.totalTime, 41032)
+        assert.equal(conflict.existing[0].rail, 'O')
+        assert.equal(conflict.existing[0].name, 'Ona Rodriguez Cornejo')
+        assert.equal(conflict.canKeep, true)
+        assert.deepEqual(Array.from(conflict.replaceable), ['existing'])
+        const { result } = await h.commit(preview.token, [importChoice({
+            duplicateAction: action, duplicateId: 'existing', duplicateReviewToken: conflict.token
+        })])
+        assert.equal(result.skipped.length, action === 'skip' ? 1 : 0)
+        assert.equal(result.imported.length, action === 'skip' ? 0 : 1)
+        assert.equal(h.writes.filter(w => w[0] === 'registry').length, action === 'keep' ? 1 : 0)
+        assert.equal(h.writes.filter(w => w[0] === 'replace').length, action === 'replace' ? 1 : 0)
+    }
+})
+
+test('duplicate checks work without source references and use the exact requested criteria', async () => {
+    for (const difference of [
+        { date: '2026-10-18' }, { skater: 'other' }, { competition: 'other' },
+        { race: '1000m' }, { distance: 1000 }, { times: [41033] }
+    ]) {
+        const h = harness([{ ...row(), source: undefined, externalReference: undefined }], {
+            records: [contentDuplicate(difference)]
+        })
+        const { result: preview } = await h.preview()
+        assert.equal((await h.commit(preview.token, [importChoice()])).result.imported.length, 1)
+    }
+    const h = harness([{ ...row(), source: undefined, externalReference: undefined }], {
+        records: [contentDuplicate({ race: '  VROUWEN 500 méter ', date: '2026-10-17T15:30:00Z', times: [41032] })]
+    })
+    const { result: preview } = await h.preview()
+    assert.equal((await h.commit(preview.token, [importChoice()])).result.code, 'IMPORT_DUPLICATE_REVIEW')
+    assert.equal(h.writes.length, 0)
+})
+
+test('changed duplicate details invalidate prior decisions and require a fresh comparison', async () => {
+    const h = harness([row()], { records: [contentDuplicate()] })
+    const { result: preview } = await h.preview()
+    const { result: first } = await h.commit(preview.token, [importChoice()])
+    h.records[0].rail = 'I'
+    const { result: second } = await h.commit(preview.token, [importChoice({
+        duplicateAction: 'replace', duplicateId: 'existing', duplicateReviewToken: first.conflicts[0].token
+    })])
+    assert.equal(second.code, 'IMPORT_DUPLICATE_REVIEW')
+    assert.notEqual(second.conflicts[0].token, first.conflicts[0].token)
+    assert.equal(second.conflicts[0].existing[0].rail, 'I')
+    assert.equal(h.writes.length, 0)
+})
+
+test('duplicate review does not offer overwrite without permission or disclose inaccessible records', async () => {
+    for (const hidden of [false, true]) {
+        const h = harness([row()], {
+            records: [contentDuplicate({ club: hidden ? 'private-club' : 'club-1' })],
+            hiddenRecords: hidden, permissions: { registry: ['C', 'R'] }
+        })
+        const { result: preview } = await h.preview()
+        const { result: review } = await h.commit(preview.token, [importChoice()])
+        const conflict = review.conflicts[0]
+        assert.equal(conflict.replaceable.length, 0)
+        assert.equal(conflict.hidden, hidden)
+        assert.equal(conflict.existing.length, hidden ? 0 : 1)
+        assert.equal(conflict.canKeep, !hidden)
+        assert.equal((await h.commit(preview.token, [importChoice({
+            duplicateAction: 'replace', duplicateId: 'existing', duplicateReviewToken: conflict.token
+        })])).status, 400)
+        assert.equal(h.writes.length, 0)
+    }
+})
+
+test('duplicate rows within the file are reviewed before creating any events or tracks', async () => {
+    const h = harness([eventRow(), eventRow({ externalReference: 'second-ref' })], { registryScope: true, startMonth: 7 })
+    const { result: preview } = await h.preview()
+    const { result: review } = await h.commit(preview.token, [importChoice(), importChoice()])
+    assert.equal(review.code, 'IMPORT_DUPLICATE_REVIEW')
+    assert.equal(review.conflicts[0].existing[0].fromFile, true)
+    assert.equal(review.conflicts[0].canKeep, true)
+    assert.equal(h.writes.length, 0)
+    const { result: report } = await h.commit(preview.token, [importChoice(), importChoice({
+        duplicateAction: 'skip', duplicateReviewToken: review.conflicts[0].token
+    })])
+    assert.equal(report.imported.length, 1)
+    assert.equal(report.skipped.length, 1)
+    assert.equal(report.createdEvents.length, 1)
+})
+
+test('same-file source references cannot be kept as separate results', async () => {
+    const h = harness([row(), { ...row(), date: '2026-10-18' }])
+    const { result: preview } = await h.preview()
+    const { result: review } = await h.commit(preview.token, [importChoice(), importChoice()])
+    assert.equal(review.conflicts[0].canKeep, false)
+    assert.equal(review.conflicts[0].replaceable.length, 0)
+    assert.equal(h.writes.length, 0)
+})
+
+test('duplicates appearing after confirmation are reported, never silently inserted', async () => {
+    let checks = 0
+    const h = harness([row()], {
+        beforeFind: (query, records) => {
+            if (query.date && ++checks === 2) records.push(contentDuplicate())
+        }
+    })
+    const { result: preview } = await h.preview()
+    const { result: report } = await h.commit(preview.token, [importChoice()])
+    assert.equal(report.imported.length, 0)
+    assert.equal(report.failed[0].reason, 'IMPORT_DUPLICATE_CHANGED')
+    assert.equal(h.writes.length, 0)
+})
+
+test('skipping an earlier file duplicate requests a fresh decision for any changed comparisons', async () => {
+    const h = harness([row(), { ...row(), externalReference: 'second-ref' }, {
+        ...row(), externalReference: 'third-ref'
+    }])
+    const { result: preview } = await h.preview()
+    const { result: review } = await h.commit(preview.token, [importChoice(), importChoice(), importChoice()])
+    assert.equal(review.conflicts.length, 2)
+    const { result: updated } = await h.commit(preview.token, [importChoice(), importChoice({
+        duplicateAction: 'skip', duplicateReviewToken: review.conflicts[0].token
+    }), importChoice({
+        duplicateAction: 'keep', duplicateReviewToken: review.conflicts[1].token
+    })])
+    assert.equal(updated.conflicts.length, 1)
+    assert.equal(updated.conflicts[0].index, 2)
+    assert.equal(h.writes.length, 0)
+    const { result: report } = await h.commit(preview.token, [importChoice(), importChoice({
+        duplicateAction: 'skip', duplicateReviewToken: review.conflicts[0].token
+    }), importChoice({
+        duplicateAction: 'keep', duplicateReviewToken: updated.conflicts[0].token
+    })])
+    assert.equal(report.imported.length, 2)
+    assert.equal(report.skipped.length, 1)
 })

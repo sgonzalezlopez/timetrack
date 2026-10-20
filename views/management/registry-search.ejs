@@ -133,7 +133,11 @@
 						</div>
 					</div>
 				</div>
-				<div data-type="search-buttons" data-api="/api/registry" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="RegistryForm"></div>
+				<div data-type="search-buttons" data-api="/api/registry" data-table="#table" <%=locals.permissions.includes('C') ? 'data-new' : ''%> data-panel="#searchpanel" data-form="RegistryForm">
+					<% if (locals.permissions.includes('C')) { %>
+					<button type="button" class="btn btn-purple" id="RegistryImport_open" data-import-scope="registry"><%= __('IMPORT_TITLE') %></button>
+					<% } %>
+				</div>
 			</div>
 		</div>
 	</form>
@@ -211,3 +215,6 @@
 		].join("");
 	}
 </script>
+<% if (locals.permissions.includes('C')) { %>
+<%- include('./registry-import.ejs', { registryImportScope: 'registry' }) %>
+<% } %>

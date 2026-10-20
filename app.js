@@ -130,6 +130,11 @@ module.exports.run = async function run(opts) {
 
   app.set('views', [path.join(__dirname, '/views'), path.join(__corePath, '/views')]);
   app.locals.registryImportFormats = options.registryImportFormats || []
+  const seasonStartMonth = options.registryImportSeasonStartMonth === undefined ? 1 : options.registryImportSeasonStartMonth
+  if (!Number.isInteger(seasonStartMonth) || seasonStartMonth < 1 || seasonStartMonth > 12) {
+    throw new Error('registryImportSeasonStartMonth must be an integer between 1 and 12')
+  }
+  app.locals.registryImportSeasonStartMonth = seasonStartMonth
   app.use('/api/v1', require('./api/external.route'))
   app.use('/api', require('./api/routes'))
   app.use('/', require('./views-routes/routes'));

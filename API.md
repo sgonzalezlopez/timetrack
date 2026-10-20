@@ -4,7 +4,7 @@
 
 Cada aplicacion registra adaptadores mediante `application.run({ registryImportFormats: [...] })`.
 Cada adaptador proporciona `id`, `label`, `extensions` y `async parse(buffer)`, que devuelve filas:
-`skaterName`, `gender` (F/M), `country`, `date`, `competitionName`, `race`, `distance`,
+`skaterName`, `gender` (F/M), `country`, `date`, `competitionName`, `trackName`, `trackLocation`, `race`, `distance`,
 `rail`, `starting`, `category`, `clubName`, `times` (parciales en milisegundos),
 `totalTime` opcional, `status` opcional, `team`, `source` y `externalReference`.
 Un adaptador puede incluir `requiredInputs: ['date', 'distance']` (o uno de ellos) cuando
@@ -33,7 +33,22 @@ Las coincidencias aproximadas y multiples requieren seleccion manual.
 Las categorias desconocidas se eligen entre las existentes; clubes desconocidos usan UNKNOWN.
 Las filas de equipos o estados distintos de OK quedan omitidas. Un estado ausente es valido.
 Los duplicados con fuente y referencia requieren seleccion expresa para sobrescribir;
-los de otro evento no se sobrescriben. Sin referencia se advierte que no hay deduplicacion.
+los de otro evento no se sobrescriben.
+
+Antes de escribir se comprueban tambien posibles repetidos por patinador, dia UTC,
+prueba normalizada, distancia, evento y tiempo total (suma exacta de parciales),
+incluso sin fuente/referencia y entre filas del mismo fichero.
+Si hay coincidencias, commit responde 409 con `code: IMPORT_DUPLICATE_REVIEW` y `conflicts`.
+La interfaz compara nuevo/existente (fecha, prueba, distancia, total, parciales,
+categoria, carril, salida, fuente y referencia) y pide una decision sin opcion preseleccionada.
+Se vuelve a confirmar con `duplicateReviewToken`, `duplicateAction` (`skip`, `replace`, `keep`)
+y `duplicateId` para sobrescribir. No se escribe ninguna fila hasta resolver todos los conflictos.
+Sobrescribir exige permiso U y un registro accesible del mismo evento. Guardar ambos
+solo se ofrece si no comparten fuente/referencia; para filas anteriores del fichero
+se puede omitir o guardar ambas, no sobrescribir una fila aun no guardada.
+No se muestran detalles de registros sin acceso. Las decisiones estan ligadas al
+contenido revisado; si cambia, se pide revisar otra vez. Si aparece un duplicado
+durante el guardado, esa fila falla explicitamente y debe releerse.
 
 La revision caduca a los 30 minutos (o al reiniciar el servidor) y se guarda en memoria:
 preview y commit deben llegar al mismo proceso si hay varios servidores.
@@ -42,6 +57,37 @@ El informe separa importados, omitidos, errores y patinadores creados. El guarda
 un fallo no revierte filas anteriores, y los patinadores creados se incluyen aunque su resultado falle.
 Los nuevos patinadores usan la primera palabra como nombre y el resto como apellidos
 (`-` si no hay apellidos); no se inventa fecha de nacimiento. Revisar estos datos manualmente.
+
+### Importar desde Registros
+
+El boton malva Importar, a la derecha de Nuevo, reutiliza la revision y las reglas de
+patinadores, categorias y duplicados. No usa el evento de un formulario ni IDs externos:
+
+- `GET /api/registry/import-formats`: formatos registrados en la aplicacion.
+- `POST /api/registry/import/preview`: multipart (`file`, `format`, `createSkaters`).
+- `POST /api/registry/import/commit`: JSON (`token`, `choices`); las selecciones pueden
+  incluir `trackId` cuando la pista falta o su nombre coincide con varias pistas.
+
+Se busca un evento no de entrenamiento por nombre de competicion del fichero, pista y
+temporada. Si hay varios, se informa del conflicto sin elegir uno arbitrariamente.
+Si no existe, se crea con el nombre de la pista, `training: false`, temporada inferida
+y fecha del primer registro seleccionado que provoque su creacion (no la fecha minima).
+Se conserva internamente el nombre normalizado de la competicion original para que
+futuros ficheros reutilicen el evento aunque su nombre visible sea el de la pista.
+Pistas con nombre desconocido se crean; si falta el nombre o es ambiguo se elige una
+pista existente en la revision. No se crean eventos ni pistas en preview o para filas omitidas.
+El informe incluye tambien eventos y pistas creados, incluso si posteriormente falla un registro.
+Se requieren lectura de eventos y pistas y, solo cuando se crean, sus permisos de creacion.
+Los tokens de revision no se pueden intercambiar entre Registros y Eventos.
+
+Cada consumidor configura `registryImportSeasonStartMonth` (1 por defecto):
+`icetimetrack` usa 7 (julio-junio, 2024-02-02 -> 2023-2024);
+`inlinetimetrack` usa 1 (enero-diciembre, 2024-02-02 -> 2024).
+Los limites de temporada se calculan en UTC para no desplazar fechas al cambiar de zona horaria.
+Excel Hielo lee `competition.name` y, para la pista, `competition.track.name`,
+`track.name` o `trackName` (por ese orden); la ubicacion opcional se lee de
+`competition.track.location` o `track.location`.
+Los formatos actuales de ruedas sin pista pediran seleccionarla, sin inventarla.
 
 ### Formatos de Inline TimeTrack
 

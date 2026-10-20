@@ -7,6 +7,10 @@ const TrackSchema = mongoose.Schema({
     name : {
         type : String,
     },
+    importName: {
+        type: String,
+        hideInForm: true,
+    },
     location : {
         type : String,
     },
@@ -39,6 +43,10 @@ TrackSchema.virtual('fullname')
     return `${this.name} - (${this.location})`;
 });
 
+TrackSchema.index({ importName: 1 }, {
+    unique: true,
+    partialFilterExpression: { importName: { $type: 'string' } }
+});
+
 // exporting module to allow it to be imported in other files
 module.exports = mongoose.model('Track', TrackSchema);
-

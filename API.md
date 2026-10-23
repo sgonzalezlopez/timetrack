@@ -49,6 +49,8 @@ Al actualizar se respeta el orden y el nombre de los bloques prueba/sexo existen
 en el libro; los bloques nuevos se anaden al final de cada agrupacion de filtros.
 Se conserva el formato de tiempo por bloque: milisegundos con separador de miles
 en distancias cortas y texto minutos:segundos.milisegundos donde lo usa la plantilla.
+Todo tiempo total de 60000 ms o mas se escribe con minutos, tambien en 500 m
+(por ejemplo, 65210 ms se muestra como `1:05.210`).
 Los estilos de tabla personalizados y sus formatos diferenciales se conservan
 al serializar, incluidas las franjas azules alternas. La tabla historica se amplia
 o reduce al numero de filas escritas para no dejar marcas nuevas fuera del estilo.

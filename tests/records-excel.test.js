@@ -85,6 +85,18 @@ test('uses final totals for ranking and leaves incomplete splits empty', async (
     }
 })
 
+test('formats 500m totals of one minute or more as minutes while preserving short totals', async () => {
+    const times = [55760, 59999, 60000, 65210, 78210, 114800]
+    const { updated } = await update(await fixture(), times.map(time => result({ times: [time] })))
+    const sheet = updated.getWorksheet('Clas. histórica')
+    const expected = [55760, 59999, '1:00.000', '1:05.210', '1:18.210', '1:54.800']
+    expected.forEach((value, index) => {
+        assert.equal(sheet.getCell(`F${index + 3}`).value, value)
+        assert.equal(sheet.getCell(`A${index + 3}`).value, index + 1)
+        if (typeof value === 'string') assert.equal(sheet.getCell(`F${index + 3}`).numFmt, '@')
+    })
+})
+
 test('recognizes reordered columns instead of using fixed column positions', async () => {
     const { updated } = await update(await fixture({ reordered: true }), [result()])
     const sheet = updated.getWorksheet('Clas. histórica')
@@ -107,7 +119,7 @@ test('exports mixed relays as a separate X block with valid final totals and mis
     assert.equal(sheet.getCell('A2').value, 'Relevo Mixto, X')
     assert.equal(sheet.getCell('A2').font.color.argb, 'FFAA00FF')
     assert.equal(sheet.getCell('C3').value, 'Equipo LUISA-NIL')
-    assert.equal(sheet.getCell('F3').value, 179650)
+    assert.equal(sheet.getCell('F3').value, '2:59.650')
     assert.ok(!sheet.getCell('E3').value)
     assert.equal(sheet.getCell('A4').value, '500M, F')
     await assert.rejects(update(await fixture(), [

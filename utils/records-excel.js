@@ -183,7 +183,7 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
                 row.getCell(column).value = values[field]
                 if (field === 'date') row.getCell(column).numFmt = 'dd/mm/yyyy'
                 if (field === 'totalTime') {
-                    const textTime = block && block.result ? block.textTime : record.distance >= 1000
+                    const textTime = totalTime >= 60000 || (block && block.result ? block.textTime : record.distance >= 1000)
                     row.getCell(column).value = textTime ? splitTime(totalTime).replace(/^0(?=\d:)/, '') : totalTime
                     row.getCell(column).numFmt = textTime ? '@' :
                         row.getCell(column).numFmt && row.getCell(column).numFmt !== '0' ? row.getCell(column).numFmt : '#,##0'

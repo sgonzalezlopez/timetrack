@@ -16,6 +16,11 @@ por sus cabeceras y reemplaza toda su clasificacion, incluso con cero resultados
 Conserva las otras hojas, formulas, anchos y estilos de las filas modelo. Reconstruye
 las secciones por prueba y sexo y, si procede, por la agrupacion seleccionada.
 Los tiempos totales siguen en milisegundos y los parciales se escriben formateados.
+Las filas de marcas de la temporada vigente al actualizar se escriben enteras en
+negrita; las de otras temporadas se escriben sin negrita, conservando el resto de
+la fuente de la plantilla. Se compara la fecha de la marca, no la temporada del
+evento ni el filtro seleccionado. Se reutiliza `registryImportSeasonStartMonth`:
+julio-junio para hielo (7) y ano natural para ruedas (1).
 Actualiza la celda junto a `Fecha de actualizacion` en `Indice` y la fecha enlazada
 en la clasificacion; fuerza recalculo de formulas al abrir el libro.
 Una estructura no reconocida o celdas combinadas en la zona de datos producen un

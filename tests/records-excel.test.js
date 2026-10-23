@@ -113,3 +113,38 @@ test('invalid workbooks or incomplete data fail explicitly without generating an
     await assert.rejects(update(await fixture(), [result({ times: [0] })]), /RECORDS_EXCEL_DATA/)
     await assert.rejects(updateRecordsExcel(Buffer.from('invalid'), []))
 })
+
+test('bolds every result cell only in the current ice or inline season, including boundary dates', async () => {
+    for (const [seasonStartMonth, reference, dates, expected] of [
+        [7, new Date(2026, 9, 23, 12),
+            ['2026-06-30', '2026-07-01', '2027-06-30', '2027-07-01'], [false, true, true, false]],
+        [7, new Date(2026, 5, 30, 12),
+            ['2025-06-30', '2025-07-01', '2026-06-30', '2026-07-01'], [false, true, true, false]],
+        [7, new Date(2026, 6, 1, 12),
+            ['2026-06-30', '2026-07-01'], [false, true]],
+        [1, new Date(2026, 9, 23, 12),
+            ['2025-12-31', '2026-01-01', '2026-12-31', '2027-01-01'], [false, true, true, false]],
+        [1, new Date(2027, 0, 1, 12),
+            ['2026-12-31', '2027-01-01'], [false, true]]
+    ]) {
+        const workbook = await fixture()
+        workbook.getWorksheet('Clas. histórica').getRow(3).eachCell(cell => {
+            cell.font = { name: 'Arial', italic: true, bold: true, color: { argb: 'FF123456' } }
+        })
+        const records = dates.map((date, i) => result({
+            date, times: [40000 + i], competition: { name: 'Race', season: 'incorrect-season-on-purpose' }
+        }))
+        const { updated } = await update(workbook, records, { now: reference, seasonStartMonth })
+        const sheet = updated.getWorksheet('Clas. histórica')
+        expected.forEach((bold, i) => {
+            for (let column = 1; column <= 8; column++) {
+                const font = sheet.getRow(i + 3).getCell(column).font
+                assert.equal(!!font.bold, bold, `${seasonStartMonth}: ${dates[i]}, column ${column}`)
+                assert.equal(font.name, 'Arial')
+                assert.equal(font.italic, true)
+                assert.equal(font.color.argb, 'FF123456')
+            }
+        })
+        assert.equal(sheet.getCell('A2').font.bold, true)
+    }
+})

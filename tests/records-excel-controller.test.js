@@ -26,6 +26,7 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
     let status = 200, body, nextError
     const headers = {}
     const req = { user: { id: 'user-1' }, body: { filters },
+        app: { locals: { registryImportSeasonStartMonth: 7 } },
         files: file ? { file: { name: 'Marcas.xlsx', size: 100, data: Buffer.from('original') } } : {} }
     const res = { __: value => value, status: value => { status = value; return res },
         set: (key, value) => { headers[key] = value }, send: value => { body = value } }
@@ -45,7 +46,15 @@ test('Excel endpoint queries current filters and authenticated user instead of t
     assert.equal(h.calls[0].query.season, '2026-2027')
     assert.equal(h.calls[0].user.id, 'user-1')
     assert.equal(h.calls[1].records[0].id, 'filtered')
+    assert.equal(h.calls[1].options.seasonStartMonth, 7)
     assert.equal(result.headers['X-Records-Count'], '1')
+})
+
+test('Excel endpoint forwards the calendar-year season configuration for inline', async () => {
+    const h = harness()
+    h.req.app.locals.registryImportSeasonStartMonth = 1
+    await h.run()
+    assert.equal(h.calls[1].options.seasonStartMonth, 1)
 })
 
 test('invalid uploads and filters fail before reading records or creating an updated workbook', async () => {

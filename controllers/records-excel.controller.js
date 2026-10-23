@@ -22,7 +22,9 @@ exports.update = async (req, res, next) => {
         const records = await getRecords(req)
         let result
         try {
-            result = await updateRecordsExcel(file.data, records, { groupBy })
+            result = await updateRecordsExcel(file.data, records, {
+                groupBy, seasonStartMonth: req.app.locals.registryImportSeasonStartMonth
+            })
         } catch (err) {
             console.error('Records Excel workbook:', err)
             const known = ['RECORDS_EXCEL_SHEET', 'RECORDS_EXCEL_COLUMNS', 'RECORDS_EXCEL_DATE',

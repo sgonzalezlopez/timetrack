@@ -1,5 +1,6 @@
 const ExcelJS = require('exceljs')
 const { normalize } = require('./registry-import')
+const { seasonFor } = require('./registry-import-events')
 
 const fields = new Map([
     ['pos', 'position'], ['posicion', 'position'], ['fecha', 'date'], ['patinador', 'skater'],
@@ -26,7 +27,9 @@ function splitTime(value) {
         `${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`
 }
 
-async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy = 'none' } = {}) {
+async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy = 'none', seasonStartMonth = 1 } = {}) {
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+    const currentSeason = seasonFor(today, seasonStartMonth)
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(buffer)
     const sheets = workbook.worksheets.filter(sheet => normalize(sheet.name) === 'clas historica')
@@ -131,9 +134,12 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
                 if (field === 'date') row.getCell(column).numFmt = 'dd/mm/yyyy'
                 if (field === 'totalTime') row.getCell(column).numFmt = '0'
             }
+            const current = seasonFor(record.date, seasonStartMonth) === currentSeason
+            row.eachCell({ includeEmpty: true }, cell => {
+                cell.font = { ...cell.font, bold: current }
+            })
         })
     }
-    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
     updateCell.value = today
     updateCell.numFmt = 'dd/mm/yyyy'
     const dateColumn = dateCells.length && dateCells[0].col >= 3 ? dateCells[0].col : 5

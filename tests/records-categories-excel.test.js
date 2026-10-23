@@ -89,7 +89,7 @@ test('supports X slots explicitly present in the category template', async () =>
     ], {}, workbook)
     const result = block(sheet, 'ABSOLUTA').find(r => r.label === '2500M, X')
     assert.equal(result.name, 'Mixed relay')
-    assert.equal(result.time, '02:59.650')
+    assert.equal(result.time, '2:59.650')
 })
 
 test('reports invalid selected marks once even when used by several category blocks', async () => {
@@ -181,4 +181,42 @@ test('rejects unrecognized layouts and invalid marks explicitly', async () => {
     const empty = await update([])
     assert.equal(empty.count, 0)
     assert.equal(block(empty.sheet, 'ABSOLUTA').find(r => r.label === '500M, M').name, null)
+})
+
+test('keeps one earliest best mark per skater while retaining ties between distinct identities', async () => {
+    const skater = { _id: 'one', fullname: 'Same name', country: 'ES', gender: 'M' }
+    const { sheet } = await update([
+        record('MA2', 40000, { skater, date: '2026-07-01' }),
+        record('MA2', 40000, { skater, date: '2025-01-01' }),
+        record('MA2', 40000, { skater: { ...skater, _id: 'two' }, date: '2026-08-01' })
+    ])
+    const slot = block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M')
+    assert.equal(sheet.getRow(slot.row).getCell(slot.col + 2).value.toISOString().slice(0, 10), '2025-01-01')
+    assert.equal(sheet.getRow(slot.row + 1).getCell(slot.col + 3).value, 'Same name')
+    assert.equal(sheet.getRow(slot.row + 2).getCell(slot.col + 3).value, null)
+})
+
+test('moves and resizes all category tables with their blocks without corrupting headers', async () => {
+    const workbook = await fixture()
+    const source = workbook.getWorksheet('Por Categorías')
+    const titles = ['ABSOLUTA', 'JÚNIOR', 'JÚNIOR A', 'JÚNIOR B', 'JÚNIOR C', 'Y+', 'MÁSTER']
+    for (let i = 0; i < titles.length; i++) {
+        const row = Math.floor(i / 2) * 8 + 1, col = i % 2 ? 10 : 3
+        source.addTable({ name: `Group${i}`, ref: source.getRow(row).getCell(col).address,
+            headerRow: true, totalsRow: false, columns: ['Distancia/Sexo', 'Fecha', 'Patinador', 'Categoría', 'Tiempo total'].map(name => ({ name })),
+            rows: Array.from({ length: 4 }, (_, offset) =>
+                Array.from({ length: 5 }, (_, c) => source.getRow(row + offset + 1).getCell(col + c).value)) })
+        source.getRow(row + 2).getCell(col + 1).numFmt = 'd/m/yyyy'
+        source.getRow(row + 2).getCell(col + 4).numFmt = '#,##0'
+    }
+    const { sheet } = await update([record('MA2', 40000), record('LA2', 12000, { distance: 100 })], {}, workbook)
+    for (const table of sheet.getTables()) {
+        const header = table.table.tableRef.split(':')[0]
+        assert.equal(sheet.getCell(header).value, 'Distancia/Sexo')
+        assert.equal(table.table.autoFilterRef, table.table.tableRef)
+    }
+    const slot = block(sheet, 'ABSOLUTA').find(r => r.label === '500M, M')
+    assert.equal(sheet.getRow(slot.row).getCell(slot.col + 5).numFmt, '#,##0')
+    assert.equal(sheet.getRow(slot.row).getCell(slot.col + 2).numFmt, 'd/m/yyyy')
+    assert.notEqual(sheet.getTable('Group2').table.tableRef, 'C9:G13')
 })

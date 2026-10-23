@@ -54,6 +54,11 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         const next = blocks.filter(b => b.col === block.col && b.row > block.row).sort((a, b) => a.row - b.row)[0]
         block.lastRow = next ? next.row - 1 : sheet.rowCount
         block.slots = []
+        block.tables = sheet.getTables().filter(table => {
+            const range = table.table.tableRef.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/)
+            return range && Number(range[2]) === block.row &&
+                sheet.getCell(`${range[1]}${range[2]}`).col === block.columns.get('race')
+        })
         block.header = []
         for (let col = block.start; col <= block.end; col++) {
             const cell = sheet.getRow(block.row).getCell(col)
@@ -114,7 +119,15 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
             }
             const total = finalTime
             matches.sort((a, b) => total(a) - total(b) || new Date(a.date) - new Date(b.date))
-            slot.records = matches.length ? matches.filter(r => total(r) === total(matches[0])) : []
+            const seen = new Set()
+            slot.records = matches.length ? matches.filter(record => {
+                if (total(record) !== total(matches[0])) return false
+                const identity = String(record.skater._id || record.skater.id ||
+                    normalize(record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`))
+                if (seen.has(identity)) return false
+                seen.add(identity)
+                return true
+            }) : []
         }
     }
     if (issues.size) {
@@ -124,7 +137,11 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
     }
     for (const block of blocks) {
         for (let row = block.row; row <= block.lastRow; row++) {
-            for (let col = block.start; col <= block.end; col++) sheet.getRow(row).getCell(col).value = null
+            for (let col = block.start; col <= block.end; col++) {
+                const cell = sheet.getRow(row).getCell(col)
+                cell.value = null
+                cell.style = {}
+            }
         }
     }
     const bands = [...new Set(blocks.map(b => b.row))].sort((a, b) => a - b)
@@ -153,12 +170,14 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
                         date: new Date(record.date),
                         skater: record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim(),
                         category: record.category || '',
-                        totalTime: record.distance < 1000 ? finalTime(record) : splitTime(finalTime(record))
+                        totalTime: finalTime(record) < 60000 && record.distance < 1000 ? finalTime(record) :
+                            splitTime(finalTime(record)).replace(/^0(?=\d:)/, '')
                     } : {}
                     for (const [field, col] of block.columns) {
                         row.getCell(col).value = values[field] == null ? null : values[field]
-                        if (field === 'date') row.getCell(col).numFmt = 'dd/mm/yyyy'
-                        if (field === 'totalTime') row.getCell(col).numFmt = record && record.distance < 1000 ? '0' : '@'
+                        if (field === 'date') row.getCell(col).numFmt = row.getCell(col).numFmt || 'dd/mm/yyyy'
+                        if (field === 'totalTime') row.getCell(col).numFmt = typeof values.totalTime === 'number' ?
+                            row.getCell(col).numFmt && row.getCell(col).numFmt !== '0' ? row.getCell(col).numFmt : '#,##0' : '@'
                     }
                     for (let col = block.start; col <= block.end; col++) {
                         const cell = row.getCell(col)
@@ -166,6 +185,11 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
                     }
                     if (record) count++
                 }
+            }
+            for (const table of block.tables) {
+                const range = table.table.tableRef.match(/^([A-Z]+)\d+:([A-Z]+)\d+$/)
+                table.table.tableRef = `${range[1]}${startRow}:${range[2]}${rowNumber - 1}`
+                table.table.autoFilterRef = table.table.tableRef
             }
             height = Math.max(height, rowNumber - startRow)
         }

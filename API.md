@@ -78,7 +78,12 @@ su disposicion en paralelo y desplaza las bandas inferiores cuando necesita espa
 
 En cada prueba y sexo ya presentes se busca el menor total de parciales.
 Las celdas sin marcas elegibles quedan vacias; no se conservan marcas antiguas
-que no cumplan la regla. Se incluyen todos los empates, ordenados por fecha.
+que no cumplan la regla. Se incluyen los empates entre deportistas distintos, ordenados por fecha.
+Si un deportista repite la mejor marca, se muestra solo su primera fecha; se
+identifica por ID, o por nombre normalizado cuando el resultado no dispone de ID.
+Las tablas de cada bloque se desplazan y redimensionan junto con sus cabeceras
+al anadir 100 m o empates. Se mantienen los formatos de fecha y separador de miles
+de la plantilla; los tiempos de un minuto o mas se muestran con minutos.
 Se anaden 100M solo en bloques y sexos con marcas elegibles. Las marcas de la
 temporada vigente se resaltan en negrita usando la configuracion hielo/ruedas.
 Un bloque o cabecera no reconocidos produce un error antes de generar el archivo.

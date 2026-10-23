@@ -18,7 +18,7 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
         } : {
             updateRecordsExcel: async (buffer, records, options) => {
                 calls.push({ buffer, records, options })
-                if (failure) throw new Error(failure)
+                if (failure) throw Object.assign(new Error(failure), { issues })
                 return { buffer: Buffer.from('updated'), count: 1, groups: 1 }
             },
             updateCategoriesExcel: async (buffer, records, options) => {
@@ -111,6 +111,18 @@ test('Excel endpoint forwards the calendar-year season configuration for inline'
     h.req.app.locals.registryImportSeasonStartMonth = 1
     await h.run()
     assert.equal(h.calls[1].options.seasonStartMonth, 1)
+})
+
+test('historical ranking endpoint displays invalid record details rather than a generic error', async () => {
+    const issues = [{ id: 'bad-record', skater: 'Test', date: '', distance: 500, race: '500',
+        competition: 'Event', gender: 'M', times: [null, 0], totalTime: 0,
+        reasons: ['RECORDS_EXCEL_INVALID_DATE', 'RECORDS_ALLROUND_INVALID_TIMES'] }]
+    const result = await harness({ failure: 'RECORDS_EXCEL_DATA', issues }).run()
+    assert.equal(result.status, 400)
+    assert.equal(result.body.issues, issues)
+    for (const text of ['bad-record', 'Test', '500', 'Event', 'RECORDS_EXCEL_INVALID_DATE']) {
+        assert.ok(result.body.message.includes(text), text)
+    }
 })
 
 test('invalid uploads and filters fail before reading records or creating an updated workbook', async () => {

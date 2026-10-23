@@ -144,6 +144,24 @@ test('bolds every result cell only in the current ice or inline season, includin
         workbook.getWorksheet('Clas. histórica').getRow(3).eachCell(cell => {
             cell.font = { name: 'Arial', italic: true, bold: true, color: { argb: 'FF123456' } }
         })
+
+        test('historical validation reports every invalid result and all reasons before changing the workbook', async () => {
+            await assert.rejects(update(await fixture(), [
+                result({ _id: 'bad-total', totalTime: 0, times: [0, null] }),
+                result({ _id: 'missing-data', date: null, race: '', skater: null, competition: null }),
+                result({ _id: 'gender', skater: { fullname: 'Test', gender: '' } }),
+                result({ totalTime: 40000, times: [null, 0, 40000] })
+            ]), error => {
+                assert.equal(error.message, 'RECORDS_EXCEL_DATA')
+                assert.equal(error.issues.length, 3)
+                assert.equal(error.issues[0].id, 'bad-total')
+                assert.deepEqual(error.issues[0].reasons, ['RECORDS_ALLROUND_INVALID_TIMES'])
+                assert.deepEqual(error.issues[1].reasons, ['RECORDS_EXCEL_INVALID_SKATER', 'RECORDS_EXCEL_INVALID_EVENT',
+                    'RECORDS_EXCEL_INVALID_RACE', 'RECORDS_EXCEL_INVALID_DATE'])
+                assert.deepEqual(error.issues[2].reasons, ['RECORDS_ALLROUND_INVALID_GENDER'])
+                return true
+            })
+        })
         const records = dates.map((date, i) => result({
             date, times: [40000 + i], competition: { name: 'Race', season: 'incorrect-season-on-purpose' }
         }))

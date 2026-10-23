@@ -27,6 +27,8 @@
         if (busy) return
         categories = this.id === 'RecordsCategoriesExcel_open'
         allround = this.id === 'RecordsAllroundExcel_open'
+        $('#RecordsExcel_save').toggleClass('btn-primary', !categories && !allround)
+            .toggleClass('btn-success', categories).toggleClass('btn-purple', allround)
         $('#RecordsExcelTitle, #RecordsExcel_save').text(text(allround ? 'RECORDS_ALLROUND_UPDATE' :
             categories ? 'RECORDS_CATEGORIES_UPDATE' : 'RECORDS_EXCEL_UPDATE'))
         $('#RecordsExcel_help').text(text(allround ? 'RECORDS_ALLROUND_HELP' :

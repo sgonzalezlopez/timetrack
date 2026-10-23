@@ -92,12 +92,27 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         const match = range.match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/)
         return !match || Number(match[2]) > headerRow
     })) throw new Error('RECORDS_EXCEL_LAYOUT')
-    const groups = new Map()
+    const groups = new Map(), issues = []
     for (const record of records) {
-        if (!record.skater || !record.competition || !record.race || !['F', 'M'].includes(record.skater.gender) ||
-            !record.date || !Number.isFinite(new Date(record.date).getTime()) ||
-            finalTime(record) === null) {
-            throw new Error('RECORDS_EXCEL_DATA')
+        const reasons = []
+        if (!record.skater) reasons.push('RECORDS_EXCEL_INVALID_SKATER')
+        if (!record.competition) reasons.push('RECORDS_EXCEL_INVALID_EVENT')
+        if (!record.race) reasons.push('RECORDS_EXCEL_INVALID_RACE')
+        if (record.skater && !['F', 'M'].includes(record.skater.gender)) reasons.push('RECORDS_ALLROUND_INVALID_GENDER')
+        if (!record.date || !Number.isFinite(new Date(record.date).getTime())) reasons.push('RECORDS_EXCEL_INVALID_DATE')
+        if (finalTime(record) === null) reasons.push('RECORDS_ALLROUND_INVALID_TIMES')
+        if (reasons.length) {
+            issues.push({
+                id: String(record._id || record.id || ''),
+                skater: record.skater && (record.skater.fullname ||
+                    `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim()) || '',
+                date: record.date ? String(record.date) : '', distance: record.distance, race: record.race || '',
+                competition: record.competition && (record.competition.fullname || record.competition.name) || '',
+                gender: record.skater && record.skater.gender || '',
+                times: Array.isArray(record.times) ? Array.from(record.times) : null,
+                totalTime: finalTime(record), reasons
+            })
+            continue
         }
         const extra = groupBy === 'country' ? record.country || record.skater.country :
             groupBy === 'track' ? record.competition.track && record.competition.track.name :
@@ -105,6 +120,11 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         const key = JSON.stringify([extra || '', record.race, record.skater.gender])
         if (!groups.has(key)) groups.set(key, { extra, race: record.race, gender: record.skater.gender, records: [] })
         groups.get(key).records.push(record)
+    }
+    if (issues.length) {
+        const error = new Error('RECORDS_EXCEL_DATA')
+        error.issues = issues
+        throw error
     }
     sheet.eachRow((row, number) => {
         if (number > headerRow) row.eachCell({ includeEmpty: true }, cell => { cell.value = null })

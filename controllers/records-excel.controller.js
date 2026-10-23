@@ -36,10 +36,11 @@ async function update(req, res, next, mode = 'records') {
                 'RECORDS_EXCEL_LAYOUT', 'RECORDS_EXCEL_DATA', 'RECORDS_CATEGORIES_SHEET', 'RECORDS_CATEGORIES_LAYOUT',
                 'RECORDS_ALLROUND_SHEET', 'RECORDS_ALLROUND_LAYOUT', 'RECORDS_ALLROUND_EMPTY']
             let message = res.__(known.includes(err.message) ? err.message : 'RECORDS_EXCEL_FILE')
-            if (mode === 'allround' && err.message === 'RECORDS_EXCEL_DATA' && Array.isArray(err.issues)) {
+            if (err.message === 'RECORDS_EXCEL_DATA' && Array.isArray(err.issues)) {
                 message += '\n\n' + res.__('RECORDS_ALLROUND_INVALID_REPORT') + ` (${err.issues.length})\n` +
                     err.issues.map((issue, index) =>
                         `${index + 1}. ${issue.skater || '-'} | ${issue.date || '-'} | ${issue.distance} m | ` +
+                        `${res.__('COL_race')}: ${issue.race || '-'} | ` +
                         `${issue.competition || '-'} | ID: ${issue.id || '-'} | ` +
                         `${res.__('RECORDS_ALLROUND_REPORT_GENDER')}: ${issue.gender || '-'} | ` +
                         `${res.__('COL_totalTime')}: ${JSON.stringify(issue.totalTime == null ? null : issue.totalTime)} | ` +

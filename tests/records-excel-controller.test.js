@@ -5,7 +5,7 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","season":"2026-2027","groupBy":"none"}',
-    failure, queryFailure, categories = false, allround = false } = {}) {
+    failure, issues, queryFailure, categories = false, allround = false } = {}) {
     const calls = [], exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/records-excel.controller.js'), 'utf8'), {
         exports, Buffer, console,
@@ -28,7 +28,7 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
             },
             updateAllroundExcel: async (buffer, records, options) => {
                 calls.push({ buffer, records, options, allround: true })
-                if (failure) throw new Error(failure)
+                if (failure) throw Object.assign(new Error(failure), { issues })
                 return { buffer: Buffer.from('allround'), count: 2, groups: 2 }
             }
         }
@@ -88,6 +88,22 @@ test('allround without eligible results returns an explicit error rather than a 
     assert.equal(result.status, 400)
     assert.equal(result.body.message, 'RECORDS_ALLROUND_EMPTY')
     assert.equal(result.headers['Content-Type'], undefined)
+})
+
+test('allround validation report identifies every invalid result and reason, without returning a workbook', async () => {
+    const issues = [
+        { id: 'record-1', skater: 'Skater One', date: '2026-10-23', distance: 500,
+            competition: 'Event', times: [0, null], gender: 'M', reasons: ['RECORDS_ALLROUND_INVALID_TIMES'] },
+        { id: 'record-2', skater: '', date: '', distance: 1000, competition: '', times: [], gender: '',
+            reasons: ['RECORDS_ALLROUND_INVALID_NAME', 'RECORDS_ALLROUND_INVALID_GENDER'] }
+    ]
+    const result = await harness({ allround: true, failure: 'RECORDS_EXCEL_DATA', issues }).run()
+    assert.equal(result.status, 400)
+    assert.equal(result.headers['Content-Type'], undefined)
+    assert.equal(result.body.issues, issues)
+    for (const text of ['Skater One', '2026-10-23', '500 m', 'Event', 'record-1', '[0,null]',
+        'record-2', '1000 m', 'RECORDS_ALLROUND_INVALID_TIMES', 'RECORDS_ALLROUND_INVALID_GENDER',
+        'RECORDS_ALLROUND_INVALID_NAME']) assert.ok(result.body.message.includes(text), text)
 })
 
 test('Excel endpoint forwards the calendar-year season configuration for inline', async () => {

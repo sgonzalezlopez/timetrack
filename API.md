@@ -79,6 +79,12 @@ en 500, 1000, 1500 y 3000 m.
 Acepta tanto ES (codigo utilizado por el selector de pais del patinador) como ESP.
 Si no encuentra ninguna marca elegible, devuelve `RECORDS_ALLROUND_EMPTY` y no genera
 un archivo de reemplazo: la clasificacion existente no se vacia.
+Si hay marcas elegibles con patinador sin identificador, nombre o sexo M/F,
+o con parciales vacios, nulos, no finitos o no positivos, cancela la actualizacion
+completa. No omite estas marcas ni modifica datos de la base de datos.
+El error `RECORDS_EXCEL_DATA` incluye `issues` con todos los registros afectados
+(ID, patinador, sexo, fecha, distancia, evento, parciales en milisegundos y motivos).
+El modal muestra el informe completo como texto, con desplazamiento si es largo.
 
 Actualiza `Allround Historico`, con hombres arriba y mujeres debajo. Primero coloca
 quienes tienen las cuatro distancias, ordenados por la suma en segundos:

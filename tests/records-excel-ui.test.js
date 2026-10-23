@@ -115,3 +115,11 @@ test('no Allround marks displays the explicit server error and never writes a ba
     assert.deepEqual(h.writes, [])
     assert.match(h.props.get('#RecordsExcel_message').text, /RECORDS_ALLROUND_EMPTY/)
 })
+
+test('invalid Allround report is displayed in full as text without writing any file', async () => {
+    const serverMessage = 'Invalid results\n1. <b>Name</b> | 500 m\nInvalid times\n\n2. Other | 1000 m\nMissing gender'
+    const h = harness({ allround: true, requestFailure: true, serverMessage })
+    await h.save()
+    assert.deepEqual(h.writes, [])
+    assert.equal(h.props.get('#RecordsExcel_message').text, `RECORDS_EXCEL_ERROR ${serverMessage}`)
+})

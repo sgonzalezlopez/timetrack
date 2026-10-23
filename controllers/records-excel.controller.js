@@ -35,7 +35,18 @@ async function update(req, res, next, mode = 'records') {
             const known = ['RECORDS_EXCEL_SHEET', 'RECORDS_EXCEL_COLUMNS', 'RECORDS_EXCEL_DATE',
                 'RECORDS_EXCEL_LAYOUT', 'RECORDS_EXCEL_DATA', 'RECORDS_CATEGORIES_SHEET', 'RECORDS_CATEGORIES_LAYOUT',
                 'RECORDS_ALLROUND_SHEET', 'RECORDS_ALLROUND_LAYOUT', 'RECORDS_ALLROUND_EMPTY']
-            return res.status(400).send({ message: res.__(known.includes(err.message) ? err.message : 'RECORDS_EXCEL_FILE') })
+            let message = res.__(known.includes(err.message) ? err.message : 'RECORDS_EXCEL_FILE')
+            if (mode === 'allround' && err.message === 'RECORDS_EXCEL_DATA' && Array.isArray(err.issues)) {
+                message += '\n\n' + res.__('RECORDS_ALLROUND_INVALID_REPORT') + ` (${err.issues.length})\n` +
+                    err.issues.map((issue, index) =>
+                        `${index + 1}. ${issue.skater || '-'} | ${issue.date || '-'} | ${issue.distance} m | ` +
+                        `${issue.competition || '-'} | ID: ${issue.id || '-'} | ` +
+                        `${res.__('RECORDS_ALLROUND_REPORT_GENDER')}: ${issue.gender || '-'} | ` +
+                        `${res.__('RECORDS_ALLROUND_REPORT_TIMES')}: ${JSON.stringify(issue.times)}\n` +
+                        issue.reasons.map(reason => res.__(reason)).join('; ')).join('\n\n')
+                return res.status(400).send({ message, issues: err.issues })
+            }
+            return res.status(400).send({ message })
         }
 
         res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

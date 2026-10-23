@@ -77,25 +77,44 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
         }
         if (!section.formulas.size) throw new Error('RECORDS_ALLROUND_LAYOUT')
     }
-    const skaters = new Map()
+    const skaters = new Map(), issues = []
     for (const record of records) {
         if (!distances.includes(record.distance) || !record.skater || !['ES', 'ESP'].includes(record.skater.country) ||
             !record.competition || [true, 'true'].includes(record.competition.training)) continue
         const id = String(record.skater._id || record.skater.id || '')
-        if (!id || !['M', 'F'].includes(record.skater.gender) || !Array.isArray(record.times) ||
-            !record.times.length || record.times.some(t => !Number.isFinite(t) || t <= 0)) {
-            throw new Error('RECORDS_EXCEL_DATA')
+        const name = record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim()
+        const reasons = []
+        if (!id) reasons.push('RECORDS_ALLROUND_INVALID_ID')
+        if (!['M', 'F'].includes(record.skater.gender)) reasons.push('RECORDS_ALLROUND_INVALID_GENDER')
+        if (!name.trim()) reasons.push('RECORDS_ALLROUND_INVALID_NAME')
+        const validTimes = Array.isArray(record.times) && record.times.length &&
+            Array.from(record.times).every(t => Number.isFinite(t) && t > 0) &&
+            Number.isFinite(record.times.reduce((sum, time) => sum + time, 0))
+        if (!validTimes) reasons.push('RECORDS_ALLROUND_INVALID_TIMES')
+        if (reasons.length) {
+            issues.push({
+                id: String(record._id || record.id || ''), skater: name, gender: record.skater.gender || '',
+                date: record.date && Number.isFinite(new Date(record.date).getTime()) ?
+                    new Date(record.date).toISOString().slice(0, 10) : '',
+                distance: record.distance, competition: record.competition.fullname || record.competition.name || '',
+                times: Array.isArray(record.times) ? Array.from(record.times) : null, reasons
+            })
+            continue
         }
         const key = `${record.skater.gender}:${id}`
         if (!skaters.has(key)) skaters.set(key, {
             id, gender: record.skater.gender,
-            name: record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim(),
+            name,
             best: new Map()
         })
         const skater = skaters.get(key)
-        if (!skater.name) throw new Error('RECORDS_EXCEL_DATA')
         const total = record.times.reduce((sum, time) => sum + time, 0)
         if (!skater.best.has(record.distance) || total < skater.best.get(record.distance)) skater.best.set(record.distance, total)
+    }
+    if (issues.length) {
+        const error = new Error('RECORDS_EXCEL_DATA')
+        error.issues = issues
+        throw error
     }
     if (!skaters.size) throw new Error('RECORDS_ALLROUND_EMPTY')
     const men = [...skaters.values()].filter(s => s.gender === 'M').sort(compareSkaters)

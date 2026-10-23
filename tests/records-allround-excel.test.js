@@ -150,3 +150,30 @@ test('formats consistent hundredths for the original AR formulas, including trai
     assert.equal(allroundTime(77404), '1.17,40')
     assert.equal(allroundTime(59999), '1.00,00')
 })
+
+test('collects all invalid records and reasons, including blanks, nulls, sparse splits and non-finite totals', async () => {
+    const times = [[], [null], [0], [-1], [NaN], [Infinity], [, 40000], [Number.MAX_VALUE, Number.MAX_VALUE]]
+    const invalid = times.map((value, index) => ({
+        ...marks(`skater-${index}`, 'M', [40000])[0],
+        _id: `record-${index}`, date: '2026-10-23', times: value,
+        competition: { name: 'Test event', training: false }
+    }))
+    invalid[0].skater.gender = ''
+    invalid[1].skater.fullname = ' '
+    invalid[2].skater._id = ''
+    await assert.rejects(update([...marks('valid', 'F', [42000]), ...invalid]), error => {
+        assert.equal(error.message, 'RECORDS_EXCEL_DATA')
+        assert.equal(error.issues.length, times.length)
+        error.issues.forEach((issue, index) => {
+            assert.equal(issue.id, `record-${index}`)
+            assert.equal(issue.date, '2026-10-23')
+            assert.equal(issue.distance, 500)
+            assert.equal(issue.competition, 'Test event')
+            assert.ok(issue.reasons.includes('RECORDS_ALLROUND_INVALID_TIMES'))
+        })
+        assert.ok(error.issues[0].reasons.includes('RECORDS_ALLROUND_INVALID_GENDER'))
+        assert.ok(error.issues[1].reasons.includes('RECORDS_ALLROUND_INVALID_NAME'))
+        assert.ok(error.issues[2].reasons.includes('RECORDS_ALLROUND_INVALID_ID'))
+        return true
+    })
+})

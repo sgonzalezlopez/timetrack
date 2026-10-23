@@ -5,6 +5,7 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ backupFailure = false, changed = false, requestFailure = false, writeFailure = false,
+    serverMessage = 'server failure',
     categories = false, allround = false } = {}) {
     const handlers = new Map(), props = new Map(), writes = []
     const original = { name: 'Marcas.xlsx', lastModified: 1, size: 100 }
@@ -47,7 +48,7 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
         fetch: async (url, options) => {
             request = { url, options }
             return { ok: !requestFailure, blob: async () => 'updated',
-                json: async () => ({ message: 'server failure' }), headers: { get: () => '1' } }
+                json: async () => ({ message: serverMessage }), headers: { get: () => '1' } }
         }
     })
     return { writes, props, original, request: () => request, save: () => handlers.get('#RecordsExcel_save')() }
@@ -106,4 +107,11 @@ test('allround update uses its own endpoint and saves the original backup before
     const failed = harness({ allround: true, backupFailure: true })
     await failed.save()
     assert.equal(failed.writes.some(entry => entry[1] === 'Marcas.xlsx'), false)
+})
+
+test('no Allround marks displays the explicit server error and never writes a backup or original', async () => {
+    const h = harness({ allround: true, requestFailure: true, serverMessage: 'RECORDS_ALLROUND_EMPTY' })
+    await h.save()
+    assert.deepEqual(h.writes, [])
+    assert.match(h.props.get('#RecordsExcel_message').text, /RECORDS_ALLROUND_EMPTY/)
 })

@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 
-function harness() {
+function harness({ countries = ['ESP', 'ESP', 'ESP'] } = {}) {
     const exports = {}, queries = [], populations = []
     const items = [
         { id: 'a', skater: 'one', time: 40000 },
@@ -16,11 +16,15 @@ function harness() {
             queries.push(query)
             const chain = {
                 populate: spec => { populations.push(spec); return chain },
-                then: callback => Promise.resolve(callback(items.map(item => {
+                then: callback => Promise.resolve(callback(items.map((item, index) => {
                     const raw = {
                         _id: item.id, race: '500', distance: 500, times: [item.time], date: '2026-10-23',
-                        skater: { id: item.skater, name: item.skater, gender: 'M', country: 'ESP' },
+                        skater: { id: item.skater, name: item.skater, gender: 'M', country: countries[index] },
                         competition: { name: 'Race', season: '2026-2027', track: { name: 'Track' } }
+                    }
+                    const country = populations.find(p => p.path === 'skater').match.country
+                    if (country && !(country.$in ? country.$in.includes(raw.skater.country) : country.$eq === raw.skater.country)) {
+                        raw.skater = null
                     }
                     return { ...raw, _doc: raw }
                 })))
@@ -68,4 +72,14 @@ test('shared records query applies access filter and current gender, country, tr
     assert.equal(competition.match.track.$eq, 'track-id')
     assert.equal(competition.match.season.$eq, '2026-2027')
     assert.equal(competition.match.training.$eq, 'false')
+})
+
+test('historical query includes both ES from the country selector and legacy ESP, not foreign skaters', async () => {
+    const h = harness({ countries: ['ES', 'FRA', 'ESP'] })
+    const results = await h.exports.getRecords({ user: { id: 'u' }, body: {
+        top: '*', groupBy: 'none', bestForSkater: 'false', country: ['ES', 'ESP'], training: 'false'
+    } })
+    assert.deepEqual(Array.from(results, record => record._id), ['a', 'c'])
+    const skater = h.populations.find(p => p.path === 'skater')
+    assert.deepEqual(Array.from(skater.match.country.$in), ['ES', 'ESP'])
 })

@@ -2,6 +2,7 @@ const ExcelJS = require('exceljs')
 const { normalize } = require('./registry-import')
 const { seasonFor } = require('./registry-import-events')
 const { cellText, splitTime, getUpdateDateCell } = require('./records-excel')
+const { writeRecordsWorkbook } = require('./records-workbook')
 
 const groups = ['absoluta', 'junior', 'junior a', 'junior b', 'junior c', 'y', 'master']
 const headers = new Map([
@@ -78,7 +79,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         }
         if (!block.slots.length) throw new Error('RECORDS_CATEGORIES_LAYOUT')
     }
-    const eligible = records.filter(record => record.skater && record.skater.country === 'ESP' &&
+    const eligible = records.filter(record => record.skater && ['ES', 'ESP'].includes(record.skater.country) &&
         record.competition && ![true, 'true'].includes(record.competition.training))
     for (const record of eligible) {
         if (!['M', 'F'].includes(record.skater.gender) || !record.date ||
@@ -168,7 +169,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         }
     }))
     workbook.calcProperties.fullCalcOnLoad = true
-    return { buffer: await workbook.xlsx.writeBuffer(), count, groups: pairs }
+    return { buffer: await writeRecordsWorkbook(workbook, buffer), count, groups: pairs }
 }
 
 module.exports = { updateCategoriesExcel, categoryGroup }

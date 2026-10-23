@@ -1,6 +1,7 @@
 const ExcelJS = require('exceljs')
 const { normalize } = require('./registry-import')
 const { seasonFor } = require('./registry-import-events')
+const { writeRecordsWorkbook } = require('./records-workbook')
 
 const fields = new Map([
     ['pos', 'position'], ['posicion', 'position'], ['fecha', 'date'], ['patinador', 'skater'],
@@ -154,7 +155,7 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
     }
     sheet.getRow(headerRow + 1).getCell(dateColumn).numFmt = 'dd/mm/yyyy'
     workbook.calcProperties.fullCalcOnLoad = true
-    return { buffer: await workbook.xlsx.writeBuffer(), count: records.length, groups: groups.size }
+    return { buffer: await writeRecordsWorkbook(workbook, buffer), count: records.length, groups: groups.size }
 }
 
 module.exports = { updateRecordsExcel, cellText, splitTime, getUpdateDateCell }

@@ -88,6 +88,14 @@ test('updates each exact group independently and excludes foreign skaters and tr
     assert.equal(sheet.getCell('A3').value.result.toISOString(), '2026-10-23T00:00:00.000Z')
 })
 
+test('includes Spanish skaters with the ES code used by the skater country selector', async () => {
+    const { sheet } = await update([record('MA2', 40000, {
+        skater: { fullname: 'Spanish skater', gender: 'M', country: 'ES' }
+    })])
+    assert.equal(block(sheet, 'ABSOLUTA').find(r => r.label === '500M, M').name, 'Spanish skater')
+    assert.equal(block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M').name, 'Spanish skater')
+})
+
 test('adds 100m only where there are eligible results, and expands bands without overwriting other blocks', async () => {
     const { sheet } = await update([
         record('LA2', 12000, { distance: 100 }), record('MYA', 13000, { distance: 100 }),

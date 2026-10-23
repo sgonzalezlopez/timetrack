@@ -127,7 +127,8 @@ async function getRecords(req) {
         if (req.body.season) competitionPopulate.match.season = { $eq: req.body.season }
         if (req.body.category) req.body.category = { $in: req.body.category }
         if (req.body.gender) skaterPopulate.match.gender = { $eq: req.body.gender }
-        if (req.body.country) skaterPopulate.match.country = { $eq: req.body.country }
+        if (req.body.country) skaterPopulate.match.country = Array.isArray(req.body.country) ?
+            { $in: req.body.country } : { $eq: req.body.country }
 
         return Model.find(filter.getFilter('Registry', parseBody(req.body), req.user))
             .populate(skaterPopulate)

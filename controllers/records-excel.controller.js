@@ -11,7 +11,7 @@ async function update(req, res, next, mode = 'records') {
     }
     let filters
     try {
-        filters = mode !== 'records' ? { top: '*', bestForSkater: 'false', groupBy: 'none', country: 'ESP', training: 'false' } :
+        filters = mode !== 'records' ? { top: '*', bestForSkater: 'false', groupBy: 'none', country: ['ES', 'ESP'], training: 'false' } :
             JSON.parse(req.body.filters)
         if (!filters || typeof filters !== 'object' || Array.isArray(filters)) throw new Error('Invalid filters')
     } catch (err) {
@@ -34,7 +34,7 @@ async function update(req, res, next, mode = 'records') {
             console.error('Records Excel workbook:', err)
             const known = ['RECORDS_EXCEL_SHEET', 'RECORDS_EXCEL_COLUMNS', 'RECORDS_EXCEL_DATE',
                 'RECORDS_EXCEL_LAYOUT', 'RECORDS_EXCEL_DATA', 'RECORDS_CATEGORIES_SHEET', 'RECORDS_CATEGORIES_LAYOUT',
-                'RECORDS_ALLROUND_SHEET', 'RECORDS_ALLROUND_LAYOUT']
+                'RECORDS_ALLROUND_SHEET', 'RECORDS_ALLROUND_LAYOUT', 'RECORDS_ALLROUND_EMPTY']
             return res.status(400).send({ message: res.__(known.includes(err.message) ? err.message : 'RECORDS_EXCEL_FILE') })
         }
 

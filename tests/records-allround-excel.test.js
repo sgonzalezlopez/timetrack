@@ -94,16 +94,20 @@ test('does not merge distinct skaters with identical names and sums split times'
     assert.equal(sheet.getCell('C7').value, '41,00')
 })
 
-test('empty historical results remove old names and marks but retain both headers and formulas', async () => {
-    const { sheet, count } = await update([])
-    assert.equal(count, 0)
-    assert.equal(sheet.getCell('A1').value, 'M')
-    assert.equal(sheet.getCell('A5').value, 'F')
-    for (const row of [2, 3, 6, 7]) {
-        assert.equal(sheet.getCell(`B${row}`).value, null)
-        assert.equal(sheet.getCell(`C${row}`).value, null)
-        assert.ok(sheet.getCell(`G${row}`).formula)
-    }
+test('empty or ineligible results fail without producing an empty replacement workbook', async () => {
+    await assert.rejects(update([]), /RECORDS_ALLROUND_EMPTY/)
+    await assert.rejects(update(marks('foreign', 'M', [40000], {
+        skater: { _id: 'foreign', fullname: 'Foreign', gender: 'M', country: 'FRA' }
+    })), /RECORDS_ALLROUND_EMPTY/)
+})
+
+test('accepts the ES code saved by the skater selector as well as legacy ESP', async () => {
+    const records = [...marks('one', 'M', [40000]), ...marks('two', 'F', [42000])]
+    records[0].skater.country = 'ES'
+    const { sheet, count } = await update(records)
+    assert.equal(count, 2)
+    assert.equal(sheet.getCell('B2').value, 'one')
+    assert.equal(sheet.getCell('B6').value, 'two')
 })
 
 test('preserves and extends AR formulas as formulas, updates dates and leaves unrelated cells unchanged', async () => {

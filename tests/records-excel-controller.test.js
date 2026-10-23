@@ -28,6 +28,7 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
             },
             updateAllroundExcel: async (buffer, records, options) => {
                 calls.push({ buffer, records, options, allround: true })
+                if (failure) throw new Error(failure)
                 return { buffer: Buffer.from('allround'), count: 2, groups: 2 }
             }
         }
@@ -65,7 +66,7 @@ test('category endpoint ignores submitted filters and uses all Spanish non-train
     assert.equal(result.status, 200)
     assert.equal(result.body.toString(), 'categories')
     assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].query)), {
-        top: '*', bestForSkater: 'false', groupBy: 'none', country: 'ESP', training: 'false'
+        top: '*', bestForSkater: 'false', groupBy: 'none', country: ['ES', 'ESP'], training: 'false'
     })
 
     assert.equal(h.calls[1].categories, true)
@@ -77,9 +78,16 @@ test('allround endpoint ignores all submitted filters and uses historical Spanis
     const result = await h.run()
     assert.equal(result.body.toString(), 'allround')
     assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].query)), {
-        top: '*', bestForSkater: 'false', groupBy: 'none', country: 'ESP', training: 'false'
+        top: '*', bestForSkater: 'false', groupBy: 'none', country: ['ES', 'ESP'], training: 'false'
     })
     assert.equal(h.calls[1].allround, true)
+})
+
+test('allround without eligible results returns an explicit error rather than a workbook', async () => {
+    const result = await harness({ allround: true, failure: 'RECORDS_ALLROUND_EMPTY' }).run()
+    assert.equal(result.status, 400)
+    assert.equal(result.body.message, 'RECORDS_ALLROUND_EMPTY')
+    assert.equal(result.headers['Content-Type'], undefined)
 })
 
 test('Excel endpoint forwards the calendar-year season configuration for inline', async () => {

@@ -1,6 +1,7 @@
 const ExcelJS = require('exceljs')
 const { normalize } = require('./registry-import')
 const { cellText, getUpdateDateCell } = require('./records-excel')
+const { writeRecordsWorkbook } = require('./records-workbook')
 
 const distances = [500, 1000, 1500, 3000]
 const clone = value => JSON.parse(JSON.stringify(value))
@@ -78,7 +79,7 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
     }
     const skaters = new Map()
     for (const record of records) {
-        if (!distances.includes(record.distance) || !record.skater || record.skater.country !== 'ESP' ||
+        if (!distances.includes(record.distance) || !record.skater || !['ES', 'ESP'].includes(record.skater.country) ||
             !record.competition || [true, 'true'].includes(record.competition.training)) continue
         const id = String(record.skater._id || record.skater.id || '')
         if (!id || !['M', 'F'].includes(record.skater.gender) || !Array.isArray(record.times) ||
@@ -96,6 +97,7 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
         const total = record.times.reduce((sum, time) => sum + time, 0)
         if (!skater.best.has(record.distance) || total < skater.best.get(record.distance)) skater.best.set(record.distance, total)
     }
+    if (!skaters.size) throw new Error('RECORDS_ALLROUND_EMPTY')
     const men = [...skaters.values()].filter(s => s.gender === 'M').sort(compareSkaters)
     const women = [...skaters.values()].filter(s => s.gender === 'F').sort(compareSkaters)
     const femaleRow = Math.max(sections[1].row, sections[0].row + men.length + 2)
@@ -144,7 +146,7 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
         }
     }))
     workbook.calcProperties.fullCalcOnLoad = true
-    return { buffer: await workbook.xlsx.writeBuffer(), count: skaters.size, groups: 2 }
+    return { buffer: await writeRecordsWorkbook(workbook, buffer), count: skaters.size, groups: 2 }
 }
 
 module.exports = { updateAllroundExcel, allroundTime }

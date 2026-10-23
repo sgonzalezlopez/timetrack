@@ -34,6 +34,9 @@ en la misma carpeta; solo despues escribe el actualizado. Si falla el respaldo,
 no escribe el original. Si el fichero cambia durante el calculo, cancela el guardado.
 El servidor no recibe rutas locales ni escribe archivos arbitrarios en disco.
 Cerrar el libro en Excel antes de actualizarlo para evitar bloqueos.
+Los tres actualizadores conservan la presencia de cabeceras y filtros de las tablas
+del libro, incluidos los valores predeterminados de Excel cuando los atributos
+no aparecen en el XML. No se generan filtros automaticos sin un rango valido.
 
 ### Actualizacion por categorias
 
@@ -43,7 +46,7 @@ con respaldo exacto previo junto al original.
 
 `POST /api/registry/records/excel/categories` recibe solo `file` y requiere admin
 y lectura de registros. Ignora los filtros de pantalla y cualquier `filters` enviado.
-Consulta todos los resultados historicos de deportistas con pais ESP y excluye
+Consulta todos los resultados historicos de deportistas con pais ES o ESP y excluye
 entrenamientos. Usa la categoria guardada en cada marca, no la categoria actual.
 Actualiza solo `Por Categorias` y la fecha de `Indice`, manteniendo las otras hojas.
 
@@ -73,6 +76,9 @@ modal de carpeta/archivo y respaldo exacto previo junto al original.
 registros e ignora los filtros de pantalla. Consulta marcas historicas espanolas,
 sin entrenamientos, y obtiene la mejor suma de parciales de cada patinador (por ID)
 en 500, 1000, 1500 y 3000 m.
+Acepta tanto ES (codigo utilizado por el selector de pais del patinador) como ESP.
+Si no encuentra ninguna marca elegible, devuelve `RECORDS_ALLROUND_EMPTY` y no genera
+un archivo de reemplazo: la clasificacion existente no se vacia.
 
 Actualiza `Allround Historico`, con hombres arriba y mujeres debajo. Primero coloca
 quienes tienen las cuatro distancias, ordenados por la suma en segundos:

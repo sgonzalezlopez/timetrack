@@ -293,7 +293,7 @@ exports.commit = async (req, res, next) => {
                             importCompetitionName: normalize(p.row.competitionName),
                             track: trackId, season: destination.season, training: false
                         }, { $setOnInsert: {
-                            name: destination.trackName, date: resolvedRow.date
+                            name: destination.name, date: resolvedRow.date
                         } }, { upsert: true, new: true, runValidators: true, rawResult: true })
                         const competition = result.value
                         competitionId = String(competition._id)

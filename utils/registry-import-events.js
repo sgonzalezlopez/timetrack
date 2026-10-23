@@ -9,10 +9,23 @@ function seasonFor(date, startMonth) {
     return `${first}-${first + 1}`
 }
 
+function trackMatches(name, tracks) {
+    const input = normalize(name)
+    if (!input) return []
+    const namesFor = track => [track.name, track.importName, `${track.name || ''} ${track.location || ''}`]
+        .map(normalize).filter(Boolean)
+    const exact = tracks.filter(track => namesFor(track).includes(input))
+    if (exact.length) return exact
+    return tracks.filter(track => namesFor(track).some(candidate => {
+        const shorter = input.length < candidate.length ? input : candidate
+        const longer = input.length < candidate.length ? candidate : input
+        return shorter.split(' ').length >= 2 && longer.startsWith(`${shorter} `)
+    }))
+}
+
 function destinationFor(row, trackId, tracks, competitions, startMonth) {
     if (!normalize(row.competitionName)) return { issue: 'IMPORT_MISSING_COMPETITION' }
-    const matches = tracks.filter(t => normalize(row.trackName) &&
-        [t.name, t.importName].some(name => normalize(name) === normalize(row.trackName)))
+    const matches = trackMatches(row.trackName, tracks)
     const needsTrack = !normalize(row.trackName) || matches.length > 1
     const track = needsTrack ? tracks.find(t => String(t._id) === trackId) : matches[0]
     const season = seasonFor(row.date, startMonth)
@@ -25,7 +38,7 @@ function destinationFor(row, trackId, tracks, competitions, startMonth) {
         needsTrack, trackId: track ? String(track._id) : null,
         trackName: track ? track.name : row.trackName, createTrack: !track,
         season, competitionId: events.length ? String(events[0]._id) : null,
-        name: events.length ? events[0].name : track ? track.name : row.trackName,
+        name: events.length ? events[0].name : row.competitionName,
         createEvent: !events.length
     }
 }

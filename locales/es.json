@@ -256,7 +256,7 @@
   "category-search": "Búsqueda de categorías",
   "IMPORT_TITLE": "Importar",
   "IMPORT_HELP": "Importar en este evento. Revisa las asociaciones antes de confirmar. Los identificadores de patinador y los puestos del fichero no se utilizan.",
-  "IMPORT_REGISTRY_HELP": "Importar registros y asociarlos por competición del fichero, pista y temporada. Los eventos nuevos tendrán el nombre de la pista, no serán de entrenamiento y usarán la fecha del primer registro importado. Las pistas con nombre desconocido se crearán; si falta la pista, selecciónala. Revisa las asociaciones antes de confirmar.",
+  "IMPORT_REGISTRY_HELP": "Importar registros y asociarlos por competición del fichero, pista y temporada. Los eventos nuevos tendrán el nombre de la competición del fichero, no serán de entrenamiento y usarán la fecha del primer registro importado. Se reutilizan pistas existentes aunque el nombre incluya o no la localidad; si hay varias coincidencias, selecciona la correcta. Las pistas sin coincidencias se crearán; si falta la pista, selecciónala. Revisa las asociaciones antes de confirmar.",
   "IMPORT_CHOOSE_TRACK": "Selecciona una pista existente para los registros que no tienen una pista identificada.",
   "IMPORT_MISSING_COMPETITION": "Falta el nombre de la competición en el fichero: no se puede asociar el registro.",
   "IMPORT_AMBIGUOUS_EVENT": "Hay varios eventos para esa competición, pista y temporada. Revisa los eventos duplicados antes de importar.",

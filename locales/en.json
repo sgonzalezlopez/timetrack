@@ -418,7 +418,7 @@
 	"category-list": "category-list",
     "IMPORT_TITLE": "Import",
     "IMPORT_HELP": "Import into this event. Review associations before confirming. Skater IDs and ranks from the file are ignored.",
-    "IMPORT_REGISTRY_HELP": "Import results and associate them by file competition, track and season. New events use the track name, are not training events and use the first imported result's date. Unknown named tracks will be created; select a track when missing. Review associations before confirming.",
+    "IMPORT_REGISTRY_HELP": "Import results and associate them by file competition, track and season. New events use the file competition name, are not training events and use the first imported result's date. Existing tracks are reused whether or not their names include the location; select the correct track when several match. Tracks without matches will be created; select a track when missing. Review associations before confirming.",
     "IMPORT_CHOOSE_TRACK": "Select an existing track for results without an identified track.",
     "IMPORT_MISSING_COMPETITION": "Missing competition name in the file: the result cannot be associated.",
     "IMPORT_AMBIGUOUS_EVENT": "Multiple events match this competition, track and season. Review duplicate events before importing.",

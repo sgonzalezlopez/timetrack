@@ -154,6 +154,85 @@ const eventFixture = () => [{
 }]
 const importChoice = overrides => ({ action: 'import', skaterId: 'skater-1', category: 'LA2', ...overrides })
 
+test('SSN imports preserve the full competition name and reuse a track whose name includes its location', async () => {
+    const competitionName = 'International Race - 23/10/2026 (Max Aicher Arena - Inzell)'
+    const h = harness([eventRow({
+        competitionName, trackName: 'Max Aicher Arena', date: '2026-10-23'
+    })], {
+        registryScope: true, startMonth: 7,
+        tracks: [{ _id: 'inzell', name: 'Max Aicher Arena - Inzell' }]
+    })
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].destination.trackId, 'inzell')
+    assert.equal(preview.rows[0].destination.createTrack, false)
+    assert.equal(preview.rows[0].destination.name, competitionName)
+    assert.equal(h.writes.length, 0)
+    const { result: report } = await h.commit(preview.token, [importChoice()])
+    assert.equal(report.imported.length, 1)
+    assert.equal(report.createdTracks.length, 0)
+    assert.equal(report.createdEvents.length, 1)
+    assert.equal(report.createdEvents[0].name, competitionName)
+    assert.equal(h.competitions[0].name, competitionName)
+    assert.equal(h.competitions[0].track, 'inzell')
+    assert.equal(h.competitions[0].season, '2026-2027')
+    const again = harness([eventRow({
+        competitionName, trackName: 'Max Aicher Arena', date: '2026-10-24', externalReference: 'another-result'
+    })], { registryScope: true, startMonth: 7, tracks: h.tracks, competitions: h.competitions })
+    const { result: nextPreview } = await again.preview()
+    assert.equal(nextPreview.rows[0].destination.competitionId, h.competitions[0]._id)
+    assert.equal((await again.commit(nextPreview.token, [importChoice()])).result.createdEvents.length, 0)
+})
+
+test('track matching tolerates location suffixes, accents and punctuation but not arbitrary fragments', () => {
+    for (const [input, name, location] of [
+        ['Max Aicher Arena', 'Max Aicher Arena - Inzell', ''],
+        ['Max Aicher Arena - Inzell', 'Max Aicher Arena', ''],
+        ['  MAX ÁICHER ARENA ', 'Max Aicher Arena (Inzell)', ''],
+        ['Thialf - Heerenveen', 'Thialf', 'Heerenveen']
+    ]) {
+        const result = destinationFor(eventRow({ trackName: input }), null, [{ _id: 'track-1', name, location }], [], 7)
+        assert.equal(result.trackId, 'track-1')
+        assert.equal(result.createTrack, false)
+    }
+    for (const input of ['Arena', 'Aicher Arena', 'Max Aicher Aren']) {
+        const result = destinationFor(eventRow({ trackName: input }), null,
+            [{ _id: 'inzell', name: 'Max Aicher Arena - Inzell' }], [], 7)
+        assert.equal(result.trackId, null)
+        assert.equal(result.createTrack, true)
+    }
+})
+
+test('multiple approximate track matches require selection and never create a new track', async () => {
+    const tracks = [
+        { _id: 'inzell', name: 'Max Aicher Arena - Inzell' },
+        { _id: 'other', name: 'Max Aicher Arena - Other' }
+    ]
+    const h = harness([eventRow({ trackName: 'Max Aicher Arena' })], { registryScope: true, tracks })
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].destination.needsTrack, true)
+    assert.equal((await h.commit(preview.token, [importChoice()])).result.message, 'IMPORT_CHOOSE_TRACK')
+    assert.equal(h.writes.length, 0)
+    const { result: report } = await h.commit(preview.token, [importChoice({ trackId: 'inzell' })])
+    assert.equal(report.imported.length, 1)
+    assert.equal(report.createdTracks.length, 0)
+    assert.equal(h.competitions[0].track, 'inzell')
+})
+
+test('exact track matches take precedence over approximate matches and existing imported events are reused', () => {
+    const tracks = [
+        { _id: 'short', name: 'Max Aicher Arena' },
+        { _id: 'inzell', name: 'Max Aicher Arena - Inzell' }
+    ]
+    const result = destinationFor(eventRow({ trackName: 'Max Aicher Arena' }), null, tracks, [], 7)
+    assert.equal(result.trackId, 'short')
+    assert.equal(result.needsTrack, false)
+    const existing = destinationFor(eventRow(), null, trackFixture(), [{
+        ...eventFixture()[0], name: 'Thialf', importCompetitionName: 'holland cup'
+    }], 7)
+    assert.equal(existing.competitionId, 'event-1')
+    assert.equal(existing.createEvent, false)
+})
+
 test('registry preview has no writes and resolves the correct existing event', async () => {
     const events = eventFixture()
     events.push(
@@ -190,7 +269,7 @@ test('creates a named track and one non-training event, using the first imported
     assert.equal(report.createdEvents.length, 1)
     assert.equal(report.imported.length, 2)
     const event = h.writes.find(w => w[0] === 'event')[1]
-    assert.equal(event.name, 'Thialf')
+    assert.equal(event.name, 'Holland Cup')
     assert.equal(event.date, '2024-02-20')
     assert.equal(event.training, false)
     assert.equal(event.season, '2023-2024')

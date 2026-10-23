@@ -70,11 +70,16 @@ patinadores, categorias y duplicados. No usa el evento de un formulario ni IDs e
 
 Se busca un evento no de entrenamiento por nombre de competicion del fichero, pista y
 temporada. Si hay varios, se informa del conflicto sin elegir uno arbitrariamente.
-Si no existe, se crea con el nombre de la pista, `training: false`, temporada inferida
+Si no existe, se crea con el nombre completo de la competicion del fichero, `training: false`, temporada inferida
 y fecha del primer registro seleccionado que provoque su creacion (no la fecha minima).
 Se conserva internamente el nombre normalizado de la competicion original para que
-futuros ficheros reutilicen el evento aunque su nombre visible sea el de la pista.
-Pistas con nombre desconocido se crean; si falta el nombre o es ambiguo se elige una
+futuros ficheros reutilicen el evento, incluso los creados anteriormente con el nombre de la pista.
+Las pistas se buscan primero por nombre normalizado, alias de importacion o nombre
+mas localidad. Sin coincidencia exacta, se admite que uno de los nombres sea el
+prefijo completo por palabras del otro (al menos dos palabras), por ejemplo
+`Max Aicher Arena` y `Max Aicher Arena - Inzell`. Solo se asocia automaticamente
+si hay una unica coincidencia; no se comparan fragmentos arbitrarios ni palabras sueltas.
+Pistas sin coincidencias se crean; si falta el nombre o es ambiguo se elige una
 pista existente en la revision. No se crean eventos ni pistas en preview o para filas omitidas.
 El informe incluye tambien eventos y pistas creados, incluso si posteriormente falla un registro.
 Se requieren lectura de eventos y pistas y, solo cuando se crean, sus permisos de creacion.

@@ -1,19 +1,20 @@
-.btn-maroon,
-.btn-maroon:disabled,
-.btn-maroon.disabled {
-    color: #fff;
-    background-color: #800020;
-    border-color: #800020;
+.btn.btn-maroon,
+.btn.btn-maroon:hover,
+.btn.btn-maroon:disabled,
+.btn.btn-maroon.disabled {
+    color: #212529;
+    background-color: #f5a9c0;
+    border-color: #f5a9c0;
 }
 
-.btn-maroon:hover,
-.btn-maroon:focus,
-.btn-maroon:active {
+.btn.btn-maroon:focus,
+.btn.btn-maroon:active,
+.btn.btn-maroon.active {
     color: #fff;
-    background-color: #66001a;
-    border-color: #66001a;
+    background-color: #c82333;
+    border-color: #c82333;
 }
 
-.btn-maroon:focus {
-    box-shadow: 0 0 0 0.25rem rgba(128, 0, 32, 0.4);
+.btn.btn-maroon:focus {
+    box-shadow: 0 0 0 0.25rem rgba(200, 35, 51, 0.4);
 }

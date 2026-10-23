@@ -104,7 +104,7 @@ test('exports mixed relays as a separate X block with valid final totals and mis
         result()
     ])
     const sheet = updated.getWorksheet('Clas. histórica')
-    assert.equal(sheet.getCell('A2').value, 'RELEVO MIXTO, X')
+    assert.equal(sheet.getCell('A2').value, 'Relevo Mixto, X')
     assert.equal(sheet.getCell('A2').font.color.argb, 'FFAA00FF')
     assert.equal(sheet.getCell('C3').value, 'Equipo LUISA-NIL')
     assert.equal(sheet.getCell('F3').value, 179650)
@@ -202,4 +202,48 @@ test('historical validation reports every invalid result and all reasons before 
         assert.deepEqual(error.issues[2].reasons, ['RECORDS_EXCEL_INVALID_GENDER'])
         return true
     })
+
+})
+
+test('keeps original race/sex order and per-block total presentation, adding new races at the end', async () => {
+        const workbook = await fixture()
+        const sheet = workbook.getWorksheet('Clas. histórica')
+        sheet.getCell('A2').value = '500M, F'
+        sheet.getCell('F3').numFmt = '#,##0'
+        sheet.getCell('A5').value = 'Relevo Mixto, X'
+        sheet.getCell('B6').value = new Date('2025-01-01')
+        sheet.getCell('F6').value = '2:59.650'
+        sheet.getCell('A7').value = '1000M, M'
+        sheet.getCell('B8').value = new Date('2025-01-01')
+        sheet.getCell('F8').value = '1:07.990'
+        const { updated } = await update(workbook, [
+            result({ race: '100', distance: 100, times: [9800] }),
+            result({ race: '1000', distance: 1000, times: [67990], skater: { fullname: 'Man', gender: 'M' } }),
+            result({ race: 'Relevo Mixto', distance: 2500, times: [179650], skater: { fullname: 'Team', gender: 'X' } }),
+            result()
+        ])
+        const out = updated.getWorksheet('Clas. histórica')
+        assert.deepEqual([2, 4, 6, 8].map(row => out.getCell(`A${row}`).value),
+            ['500M, F', 'Relevo Mixto, X', '1000M, M', '100M, F'])
+        assert.equal(out.getCell('F3').value, 41032)
+        assert.equal(out.getCell('F3').numFmt, '#,##0')
+        assert.equal(out.getCell('F5').value, '2:59.650')
+        assert.equal(out.getCell('F7').value, '1:07.990')
+})
+
+test('resizes the historical table so growing and shrinking results all retain table styling', async () => {
+    const workbook = await fixture()
+    const sheet = workbook.getWorksheet('Clas. histórica')
+    sheet.addTable({
+        name: 'Historical', ref: 'A1', headerRow: true, totalsRow: false,
+        style: { theme: 'TableStyleMedium2', showRowStripes: true },
+        columns: sheet.getRow(1).values.slice(1, 9).map(name => ({ name, filterButton: true })),
+        rows: [sheet.getRow(2).values.slice(1, 9), sheet.getRow(3).values.slice(1, 9)]
+    })
+    const grown = await update(workbook, Array.from({ length: 20 }, (_, i) => result({ times: [40000 + i] })))
+    assert.equal(grown.updated.getWorksheet('Clas. histórica').getTable('Historical').table.tableRef, 'A1:H22')
+    const shrunk = await update(grown.updated, [result()])
+    const table = shrunk.updated.getWorksheet('Clas. histórica').getTable('Historical')
+    assert.equal(table.table.tableRef, 'A1:H3')
+    assert.equal(table.table.autoFilterRef, 'A1:H3')
 })

@@ -77,7 +77,9 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
             cells: Array.from({ length: sheet.columnCount }, (_, i) => JSON.parse(JSON.stringify(row.getCell(i + 1).style)))
         }
     }
-    let headingTemplate, resultTemplate
+    let headingTemplate, resultTemplate, currentBlock
+    const blocks = new Map()
+    const blockKey = (race, gender) => `${normalize(String(race)).replace(/^(\d+)m$/, '$1')}:${gender}`
     const dateCells = []
     sheet.eachRow((row, number) => {
         if (number <= headerRow) return
@@ -85,8 +87,22 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
             if (normalize(cellText(cell.value)) === 'a fecha') dateCells.push({ row: number, col: cell.col + 1 })
         })
         const date = row.getCell(columns.get('date')).value
-        if (!resultTemplate && date instanceof Date) resultTemplate = styles(number)
-        if (!headingTemplate && /,\s*[MFX]\s*$/i.test(cellText(row.getCell(1).value))) headingTemplate = styles(number)
+        const label = cellText(row.getCell(1).value)
+        const match = label.match(/^(.*),\s*([MFX])\s*$/i)
+        if (match) {
+            currentBlock = {
+                label: match[1].trim(), order: blocks.size, heading: styles(number)
+            }
+            blocks.set(blockKey(match[1].trim(), match[2].toUpperCase()), currentBlock)
+            if (!headingTemplate) headingTemplate = currentBlock.heading
+        }
+        if (date instanceof Date) {
+            if (!resultTemplate) resultTemplate = styles(number)
+            if (currentBlock && !currentBlock.result) {
+                currentBlock.result = styles(number)
+                currentBlock.textTime = typeof row.getCell(columns.get('totalTime')).value === 'string'
+            }
+        }
     })
     if (sheet.model.merges.some(range => {
         const match = range.match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/)
@@ -139,9 +155,16 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         return row
     }
     let number = headerRow + 1
-    for (const group of groups.values()) {
-        const heading = addRow(number++, headingTemplate)
-        const race = /^\d+(?:[.,]\d+)?$/.test(String(group.race).trim()) ? `${group.race}M` : String(group.race).toUpperCase()
+    const ordered = [...groups.values()]
+    const extras = [...new Set(ordered.map(group => group.extra))]
+    ordered.sort((a, b) => extras.indexOf(a.extra) - extras.indexOf(b.extra) ||
+        (blocks.get(blockKey(a.race, a.gender))?.order ?? blocks.size) -
+        (blocks.get(blockKey(b.race, b.gender))?.order ?? blocks.size))
+    for (const group of ordered) {
+        const block = blocks.get(blockKey(group.race, group.gender))
+        const heading = addRow(number++, block ? block.heading : headingTemplate)
+        const race = block ? block.label : /^\d+(?:[.,]\d+)?$/.test(String(group.race).trim()) ?
+            `${group.race}M` : String(group.race)
         heading.getCell(1).value = `${group.extra ? `${group.extra} · ` : ''}${race}, ${group.gender}`
         group.records.sort((a, b) => finalTime(a) - finalTime(b))
         group.records.forEach((record, i) => {
@@ -155,17 +178,28 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
                 race: record.race, gender: record.skater.gender, distance: record.distance,
                 club: record.club && record.club.name || ''
             }
-            const row = addRow(number++, resultTemplate)
+            const row = addRow(number++, block && block.result || resultTemplate)
             for (const [field, column] of columns) {
                 row.getCell(column).value = values[field]
                 if (field === 'date') row.getCell(column).numFmt = 'dd/mm/yyyy'
-                if (field === 'totalTime') row.getCell(column).numFmt = '0'
+                if (field === 'totalTime') {
+                    const textTime = block && block.result ? block.textTime : record.distance >= 1000
+                    row.getCell(column).value = textTime ? splitTime(totalTime).replace(/^0(?=\d:)/, '') : totalTime
+                    row.getCell(column).numFmt = textTime ? '@' :
+                        row.getCell(column).numFmt && row.getCell(column).numFmt !== '0' ? row.getCell(column).numFmt : '#,##0'
+                }
             }
             const current = seasonFor(record.date, seasonStartMonth) === currentSeason
             row.eachCell({ includeEmpty: true }, cell => {
                 cell.font = { ...cell.font, bold: current }
             })
         })
+    }
+    for (const table of sheet.getTables()) {
+        const range = table.table.tableRef.match(/^([A-Z]+)(\d+):([A-Z]+)\d+$/)
+        if (!range || Number(range[2]) !== headerRow) throw new Error('RECORDS_EXCEL_LAYOUT')
+        table.table.tableRef = `${range[1]}${headerRow}:${range[3]}${Math.max(headerRow + 1, number - 1)}`
+        table.table.autoFilterRef = table.table.tableRef
     }
     updateCell.value = today
     updateCell.numFmt = 'dd/mm/yyyy'

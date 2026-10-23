@@ -67,3 +67,32 @@ test('does not enable headers or filters for a genuinely headerless table', asyn
     assert.equal(nodes.find(node => node.name === 'table').attributes.headerRowCount, '0')
     assert.equal(nodes.some(node => node.name === 'autoFilter'), false)
 })
+
+test('retains custom blue table stripes and remaps differential format references on repeated saves', async () => {
+    const zip = await JSZip.loadAsync(await fixture())
+    let styles = await zip.file('xl/styles.xml').async('string')
+    styles = styles.replace(/<dxfs\b[^>]*(?:\/>|>[\s\S]*?<\/dxfs>)/,
+        '<dxfs count="2"><dxf><fill><patternFill patternType="solid"><fgColor rgb="FFBDD7EE"/></patternFill></fill></dxf>' +
+        '<dxf><fill><patternFill patternType="solid"><fgColor rgb="FFDEEAF6"/></patternFill></fill></dxf></dxfs>')
+        .replace(/<tableStyles\b[^>]*(?:\/>|>[\s\S]*?<\/tableStyles>)/,
+            '<tableStyles count="1"><tableStyle name="CustomBlue" count="2">' +
+            '<tableStyleElement type="firstRowStripe" dxfId="0"/>' +
+            '<tableStyleElement type="secondRowStripe" dxfId="1"/></tableStyle></tableStyles>')
+    zip.file('xl/styles.xml', styles)
+    zip.file('xl/tables/table1.xml', (await zip.file('xl/tables/table1.xml').async('string'))
+        .replace(/name="TableStyleLight\d+"/, 'name="CustomBlue"'))
+    let buffer = await zip.generateAsync({ type: 'nodebuffer' })
+    for (let iteration = 0; iteration < 2; iteration++) {
+        const workbook = new ExcelJS.Workbook()
+        await workbook.xlsx.load(buffer)
+        buffer = await writeRecordsWorkbook(workbook, buffer)
+        const output = await JSZip.loadAsync(buffer)
+        const xml = await output.file('xl/styles.xml').async('string')
+        const nodes = elements(xml)
+        assert.ok(nodes.some(node => node.name === 'tableStyle' && node.attributes.name === 'CustomBlue'))
+        const dxfs = xml.match(/<dxf>[\s\S]*?<\/dxf>/g)
+        const stripes = nodes.filter(node => node.name === 'tableStyleElement')
+        assert.ok(dxfs[Number(stripes[0].attributes.dxfId)].includes('FFBDD7EE'))
+        assert.ok(dxfs[Number(stripes[1].attributes.dxfId)].includes('FFDEEAF6'))
+    }
+})

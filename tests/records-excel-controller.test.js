@@ -5,7 +5,7 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","season":"2026-2027","groupBy":"none"}',
-    failure, queryFailure, categories = false } = {}) {
+    failure, queryFailure, categories = false, allround = false } = {}) {
     const calls = [], exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/records-excel.controller.js'), 'utf8'), {
         exports, Buffer, console,
@@ -25,6 +25,10 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
                 calls.push({ buffer, records, options, categories: true })
                 if (failure) throw new Error(failure)
                 return { buffer: Buffer.from('categories'), count: 2, groups: 7 }
+            },
+            updateAllroundExcel: async (buffer, records, options) => {
+                calls.push({ buffer, records, options, allround: true })
+                return { buffer: Buffer.from('allround'), count: 2, groups: 2 }
             }
         }
     })
@@ -36,7 +40,7 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
     const res = { __: value => value, status: value => { status = value; return res },
         set: (key, value) => { headers[key] = value }, send: value => { body = value } }
     return { calls, req, run: async () => {
-        await (categories ? exports.updateCategories : exports.update)(req, res, err => { nextError = err })
+        await (allround ? exports.updateAllround : categories ? exports.updateCategories : exports.update)(req, res, err => { nextError = err })
         return { status, body, headers, nextError }
     } }
 }
@@ -63,8 +67,19 @@ test('category endpoint ignores submitted filters and uses all Spanish non-train
     assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].query)), {
         top: '*', bestForSkater: 'false', groupBy: 'none', country: 'ESP', training: 'false'
     })
+
     assert.equal(h.calls[1].categories, true)
     assert.equal(h.calls[1].options.seasonStartMonth, 7)
+})
+
+test('allround endpoint ignores all submitted filters and uses historical Spanish non-training results', async () => {
+    const h = harness({ allround: true, filters: 'invalid and ignored' })
+    const result = await h.run()
+    assert.equal(result.body.toString(), 'allround')
+    assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].query)), {
+        top: '*', bestForSkater: 'false', groupBy: 'none', country: 'ESP', training: 'false'
+    })
+    assert.equal(h.calls[1].allround, true)
 })
 
 test('Excel endpoint forwards the calendar-year season configuration for inline', async () => {

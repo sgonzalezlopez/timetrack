@@ -1,6 +1,6 @@
 /* global bootstrap, core, recordsExcelText */
 (function () {
-    let folder, busy = false, categories = false
+    let folder, busy = false, categories = false, allround = false
     const text = key => recordsExcelText[key] || key
     async function writeFile(handle, contents) {
         const writer = await handle.createWritable()
@@ -23,11 +23,14 @@
         $('#RecordsExcelModal button, #RecordsExcel_file').prop('disabled', value)
         $('#RecordsExcel_save').prop('disabled', value || !folder || !$('#RecordsExcel_file').val())
     }
-    $(document).on('click', '#RecordsExcel_open, #RecordsCategoriesExcel_open', function () {
+    $(document).on('click', '#RecordsExcel_open, #RecordsCategoriesExcel_open, #RecordsAllroundExcel_open', function () {
         if (busy) return
         categories = this.id === 'RecordsCategoriesExcel_open'
-        $('#RecordsExcelTitle, #RecordsExcel_save').text(text(categories ? 'RECORDS_CATEGORIES_UPDATE' : 'RECORDS_EXCEL_UPDATE'))
-        $('#RecordsExcel_help').text(text(categories ? 'RECORDS_CATEGORIES_HELP' : 'RECORDS_EXCEL_HELP'))
+        allround = this.id === 'RecordsAllroundExcel_open'
+        $('#RecordsExcelTitle, #RecordsExcel_save').text(text(allround ? 'RECORDS_ALLROUND_UPDATE' :
+            categories ? 'RECORDS_CATEGORIES_UPDATE' : 'RECORDS_EXCEL_UPDATE'))
+        $('#RecordsExcel_help').text(text(allround ? 'RECORDS_ALLROUND_HELP' :
+            categories ? 'RECORDS_CATEGORIES_HELP' : 'RECORDS_EXCEL_HELP'))
         folder = null
         $('#RecordsExcel_file').empty()
         $('#RecordsExcel_message').prop('hidden', true)
@@ -57,7 +60,8 @@
     $(document).on('click', '#RecordsExcel_save', async function () {
         if (busy || !folder) return
         const name = $('#RecordsExcel_file').val()
-        if (!name || !window.confirm(`${text(categories ? 'RECORDS_CATEGORIES_CONFIRM' : 'RECORDS_EXCEL_CONFIRM')}\n${name}`)) return
+        if (!name || !window.confirm(`${text(allround ? 'RECORDS_ALLROUND_CONFIRM' :
+            categories ? 'RECORDS_CATEGORIES_CONFIRM' : 'RECORDS_EXCEL_CONFIRM')}\n${name}`)) return
         setBusy(true)
         let backupName
         try {
@@ -65,8 +69,9 @@
             const original = await handle.getFile()
             const data = new FormData()
             data.set('file', original, name)
-            if (!categories) data.set('filters', JSON.stringify(core.forms.parse('RecordsForm')))
-            const response = await fetch(categories ? '/api/registry/records/excel/categories' : '/api/registry/records/excel',
+            if (!categories && !allround) data.set('filters', JSON.stringify(core.forms.parse('RecordsForm')))
+            const response = await fetch(allround ? '/api/registry/records/excel/allround' :
+                categories ? '/api/registry/records/excel/categories' : '/api/registry/records/excel',
                 { method: 'POST', body: data })
             if (!response.ok) {
                 const error = await response.json()

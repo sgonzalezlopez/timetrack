@@ -65,6 +65,30 @@ Un bloque o cabecera no reconocidos produce un error antes de generar el archivo
 
 ## Importacion de resultados (interfaz autenticada)
 
+### Actualizar Allround historico
+
+El boton `Actualizar Allround` es exclusivo de administradores y utiliza el mismo
+modal de carpeta/archivo y respaldo exacto previo junto al original.
+`POST /api/registry/records/excel/allround` recibe `file`, exige admin y lectura de
+registros e ignora los filtros de pantalla. Consulta marcas historicas espanolas,
+sin entrenamientos, y obtiene la mejor suma de parciales de cada patinador (por ID)
+en 500, 1000, 1500 y 3000 m.
+
+Actualiza `Allround Historico`, con hombres arriba y mujeres debajo. Primero coloca
+quienes tienen las cuatro distancias, ordenados por la suma en segundos:
+500 + 1000/2 + 1500/3 + 3000/6. Para coincidir con las formulas de la plantilla,
+las marcas se representan con centesimas y se calcula la puntuacion con esa precision.
+Los incompletos van despues, agrupados por primera distancia disponible en ese orden
+y ordenados por su tiempo en ella. Los empates se desempatan por nombre e ID.
+
+`Total AR` conserva formulas de Excel (incluidas las compartidas, que se expanden a
+formulas individuales), nunca recibe puntuaciones numericas calculadas por el servidor.
+Si hacen falta filas, el bloque femenino se desplaza hacia abajo y se extienden las
+formulas ajustando referencias relativas. Se eliminan los resultados en cache para
+evitar mostrar puntuaciones antiguas y se solicita recalculo al abrir el libro.
+Se conservan las otras hojas y las celdas informativas a la derecha de la tabla.
+Se actualizan la fecha de `Indice` y su enlace en Allround.
+
 Cada aplicacion registra adaptadores mediante `application.run({ registryImportFormats: [...] })`.
 Cada adaptador proporciona `id`, `label`, `extensions` y `async parse(buffer)`, que devuelve filas:
 `skaterName`, `gender` (F/M), `country`, `date`, `competitionName`, `trackName`, `trackLocation`, `race`, `distance`,

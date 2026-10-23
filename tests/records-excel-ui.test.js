@@ -5,7 +5,7 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ backupFailure = false, changed = false, requestFailure = false, writeFailure = false,
-    categories = false } = {}) {
+    categories = false, allround = false } = {}) {
     const handlers = new Map(), props = new Map(), writes = []
     const original = { name: 'Marcas.xlsx', lastModified: 1, size: 100 }
     let reads = 0, request
@@ -40,7 +40,7 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
         set(key, value) { this.values[key] = value }
     }
     const source = fs.readFileSync(path.join(__dirname, '../public/js/records-excel.js'), 'utf8')
-    vm.runInNewContext(source.replace(/\}\(\)\)\s*$/, `folder = testFolder; categories = ${categories}; }())`), {
+    vm.runInNewContext(source.replace(/\}\(\)\)\s*$/, `folder = testFolder; categories = ${categories}; allround = ${allround}; }())`), {
         $, document, testFolder: folder, console, FormData,
         recordsExcelText: {}, window: { confirm: () => true }, crypto: { randomUUID: () => 'unique' },
         core: { forms: { parse: () => ({ top: '3', race: '500', bestForSkater: 'true' }) } },
@@ -91,6 +91,19 @@ test('category update uses its own endpoint without screen filters and retains t
     assert.equal(h.writes[1][0], 'close')
     assert.equal(h.writes[2][1], 'Marcas.xlsx')
     const failed = harness({ categories: true, backupFailure: true })
+    await failed.save()
+    assert.equal(failed.writes.some(entry => entry[1] === 'Marcas.xlsx'), false)
+})
+
+test('allround update uses its own endpoint and saves the original backup before overwriting', async () => {
+    const h = harness({ allround: true })
+    await h.save()
+    assert.equal(h.request().url, '/api/registry/records/excel/allround')
+    assert.equal(h.request().options.body.values.filters, undefined)
+    assert.equal(h.writes[0][2], h.original)
+    assert.equal(h.writes[1][0], 'close')
+    assert.equal(h.writes[2][1], 'Marcas.xlsx')
+    const failed = harness({ allround: true, backupFailure: true })
     await failed.save()
     assert.equal(failed.writes.some(entry => entry[1] === 'Marcas.xlsx'), false)
 })

@@ -13,16 +13,19 @@ test('Excel route requires admin authorization before invoking the update contro
     const isAdmin = () => {}
     const readPermission = () => {}
     const update = () => {}
+    const updateCategories = () => {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../api/registry.route.js'), 'utf8'), {
         module: { exports: {} }, __corePath: 'core',
         require: name => {
             if (name === 'path') return path
             if (name === 'express') return { Router: () => router }
             if (name.endsWith('authorization')) return { isAdmin, checkPermision: () => readPermission }
-            if (name === '../controllers/records-excel.controller') return { update }
+            if (name === '../controllers/records-excel.controller') return { update, updateCategories }
             return {}
         }
     })
     const route = routes.find(r => r.method === 'post' && r.url === '/records/excel')
     assert.deepEqual(route.handlers, [readPermission, isAdmin, update])
+    const categoriesRoute = routes.find(r => r.method === 'post' && r.url === '/records/excel/categories')
+    assert.deepEqual(categoriesRoute.handlers, [readPermission, isAdmin, updateCategories])
 })

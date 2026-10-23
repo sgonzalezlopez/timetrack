@@ -27,6 +27,20 @@ function splitTime(value) {
         `${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`
 }
 
+function getUpdateDateCell(workbook) {
+    const index = workbook.worksheets.find(s => normalize(s.name) === 'indice')
+    const cells = []
+    if (index) index.eachRow(row => row.eachCell(cell => {
+        if (normalize(cellText(cell.value)).includes('fecha de actualizacion')) {
+            const candidate = row.getCell(cell.col + 1)
+            if (candidate.isMerged) throw new Error('RECORDS_EXCEL_DATE')
+            cells.push(candidate)
+        }
+    }))
+    if (cells.length !== 1) throw new Error('RECORDS_EXCEL_DATE')
+    return cells[0]
+}
+
 async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy = 'none', seasonStartMonth = 1 } = {}) {
     const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
     const currentSeason = seasonFor(today, seasonStartMonth)
@@ -52,17 +66,8 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         }
     }
     if (!headerRow) throw new Error('RECORDS_EXCEL_COLUMNS')
-    const index = workbook.worksheets.find(s => normalize(s.name) === 'indice')
-    const updateCells = []
-    if (index) index.eachRow(row => row.eachCell(cell => {
-        if (normalize(cellText(cell.value)).includes('fecha de actualizacion')) {
-            const candidate = row.getCell(cell.col + 1)
-            if (candidate.isMerged) throw new Error('RECORDS_EXCEL_DATE')
-            updateCells.push(candidate)
-        }
-    }))
-    if (updateCells.length !== 1) throw new Error('RECORDS_EXCEL_DATE')
-    const updateCell = updateCells[0]
+    const updateCell = getUpdateDateCell(workbook)
+    const index = updateCell.worksheet
     const styles = number => {
         const row = sheet.getRow(number)
         return {
@@ -152,4 +157,4 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
     return { buffer: await workbook.xlsx.writeBuffer(), count: records.length, groups: groups.size }
 }
 
-module.exports = { updateRecordsExcel }
+module.exports = { updateRecordsExcel, cellText, splitTime, getUpdateDateCell }

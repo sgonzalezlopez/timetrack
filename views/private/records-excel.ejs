@@ -5,7 +5,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= __('CLOSE') %>"></button>
         </div>
         <div class="modal-body">
-            <p><%= __('RECORDS_EXCEL_HELP') %></p>
+            <p id="RecordsExcel_help"><%= __('RECORDS_EXCEL_HELP') %></p>
             <button type="button" class="btn btn-secondary" id="RecordsExcel_folder"><%= __('RECORDS_EXCEL_FOLDER') %></button>
             <label for="RecordsExcel_file" class="d-block mt-3"><%= __('IMPORT_FILE') %></label>
             <select id="RecordsExcel_file" class="form-select"></select>
@@ -20,7 +20,9 @@
 <script>
     window.recordsExcelText = <%- JSON.stringify(Object.fromEntries([
         'RECORDS_EXCEL_UNSUPPORTED', 'RECORDS_EXCEL_CONFIRM', 'RECORDS_EXCEL_SAVED',
-        'RECORDS_EXCEL_ERROR', 'RECORDS_EXCEL_NO_FILES', 'RECORDS_EXCEL_BACKUP', 'RECORDS_EXCEL_CHANGED'
+        'RECORDS_EXCEL_ERROR', 'RECORDS_EXCEL_NO_FILES', 'RECORDS_EXCEL_BACKUP', 'RECORDS_EXCEL_CHANGED',
+        'RECORDS_EXCEL_UPDATE', 'RECORDS_EXCEL_HELP', 'RECORDS_CATEGORIES_UPDATE',
+        'RECORDS_CATEGORIES_HELP', 'RECORDS_CATEGORIES_CONFIRM'
     ].map(key => [key, __(key)]))).replace(/</g, '\\u003c') %>;
 </script>
 <script src="/js/records-excel.js"></script>

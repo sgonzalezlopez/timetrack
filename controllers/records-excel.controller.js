@@ -1,7 +1,8 @@
 const { getRecords } = require('./registry.controller')
 const { updateRecordsExcel } = require('../utils/records-excel')
+const { updateCategoriesExcel } = require('../utils/records-categories-excel')
 
-exports.update = async (req, res, next) => {
+async function update(req, res, next, categories = false) {
     const file = req.files && req.files.file
     if (!file || Array.isArray(file) || !file.data || !/\.xlsx$/i.test(file.name) ||
         file.size > 25 * 1024 * 1024) {
@@ -9,7 +10,8 @@ exports.update = async (req, res, next) => {
     }
     let filters
     try {
-        filters = JSON.parse(req.body.filters)
+        filters = categories ? { top: '*', bestForSkater: 'false', groupBy: 'none', country: 'ESP', training: 'false' } :
+            JSON.parse(req.body.filters)
         if (!filters || typeof filters !== 'object' || Array.isArray(filters)) throw new Error('Invalid filters')
     } catch (err) {
         console.error('Records Excel filters:', err)
@@ -22,15 +24,16 @@ exports.update = async (req, res, next) => {
         const records = await getRecords(req)
         let result
         try {
-            result = await updateRecordsExcel(file.data, records, {
+            result = await (categories ? updateCategoriesExcel : updateRecordsExcel)(file.data, records, {
                 groupBy, seasonStartMonth: req.app.locals.registryImportSeasonStartMonth
             })
         } catch (err) {
             console.error('Records Excel workbook:', err)
             const known = ['RECORDS_EXCEL_SHEET', 'RECORDS_EXCEL_COLUMNS', 'RECORDS_EXCEL_DATE',
-                'RECORDS_EXCEL_LAYOUT', 'RECORDS_EXCEL_DATA']
+                'RECORDS_EXCEL_LAYOUT', 'RECORDS_EXCEL_DATA', 'RECORDS_CATEGORIES_SHEET', 'RECORDS_CATEGORIES_LAYOUT']
             return res.status(400).send({ message: res.__(known.includes(err.message) ? err.message : 'RECORDS_EXCEL_FILE') })
         }
+
         res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         res.set('Content-Disposition', "attachment; filename*=UTF-8''" + encodeURIComponent(file.name))
         res.set('X-Records-Count', String(result.count))
@@ -38,3 +41,6 @@ exports.update = async (req, res, next) => {
         res.send(Buffer.from(result.buffer))
     } catch (err) { next(err) }
 }
+
+exports.update = (req, res, next) => update(req, res, next)
+exports.updateCategories = (req, res, next) => update(req, res, next, true)

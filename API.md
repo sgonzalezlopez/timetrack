@@ -35,6 +35,34 @@ no escribe el original. Si el fichero cambia durante el calculo, cancela el guar
 El servidor no recibe rutas locales ni escribe archivos arbitrarios en disco.
 Cerrar el libro en Excel antes de actualizarlo para evitar bloqueos.
 
+### Actualizacion por categorias
+
+El segundo boton de Mejores registros, `Actualizacion por categorias`, tambien es
+exclusivo de administradores. Comparte el selector de carpeta/archivo y el guardado
+con respaldo exacto previo junto al original.
+
+`POST /api/registry/records/excel/categories` recibe solo `file` y requiere admin
+y lectura de registros. Ignora los filtros de pantalla y cualquier `filters` enviado.
+Consulta todos los resultados historicos de deportistas con pais ESP y excluye
+entrenamientos. Usa la categoria guardada en cada marca, no la categoria actual.
+Actualiza solo `Por Categorias` y la fecha de `Indice`, manteniendo las otras hojas.
+
+Detecta los siete bloques por sus titulos y las columnas de cada uno, conserva
+su disposicion en paralelo y desplaza las bandas inferiores cuando necesita espacio:
+
+- Absoluta: todas las categorias.
+- Junior: A+B+C; no incluye Youth.
+- Junior A/B/C: exclusivamente A1/A2, B1/B2 o C1/C2, con prefijo L/M.
+- Y+: todos los codigos LY/MY, incluyendo variantes A, B, C, numericas o +.
+- Master: codigos L/M seguidos de edad numerica (por ejemplo L30/M30).
+
+En cada prueba y sexo ya presentes se busca el menor total de parciales.
+Las celdas sin marcas elegibles quedan vacias; no se conservan marcas antiguas
+que no cumplan la regla. Se incluyen todos los empates, ordenados por fecha.
+Se anaden 100M solo en bloques y sexos con marcas elegibles. Las marcas de la
+temporada vigente se resaltan en negrita usando la configuracion hielo/ruedas.
+Un bloque o cabecera no reconocidos produce un error antes de generar el archivo.
+
 ## Importacion de resultados (interfaz autenticada)
 
 Cada aplicacion registra adaptadores mediante `application.run({ registryImportFormats: [...] })`.

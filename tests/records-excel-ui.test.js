@@ -4,7 +4,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 
-function harness({ backupFailure = false, changed = false, requestFailure = false, writeFailure = false } = {}) {
+function harness({ backupFailure = false, changed = false, requestFailure = false, writeFailure = false,
+    categories = false } = {}) {
     const handlers = new Map(), props = new Map(), writes = []
     const original = { name: 'Marcas.xlsx', lastModified: 1, size: 100 }
     let reads = 0, request
@@ -39,7 +40,7 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
         set(key, value) { this.values[key] = value }
     }
     const source = fs.readFileSync(path.join(__dirname, '../public/js/records-excel.js'), 'utf8')
-    vm.runInNewContext(source.replace(/\}\(\)\)\s*$/, 'folder = testFolder; }())'), {
+    vm.runInNewContext(source.replace(/\}\(\)\)\s*$/, `folder = testFolder; categories = ${categories}; }())`), {
         $, document, testFolder: folder, console, FormData,
         recordsExcelText: {}, window: { confirm: () => true }, crypto: { randomUUID: () => 'unique' },
         core: { forms: { parse: () => ({ top: '3', race: '500', bestForSkater: 'true' }) } },
@@ -79,4 +80,17 @@ test('failed original write aborts and reports the completed backup path', async
     await h.save()
     assert.equal(h.writes.some(entry => entry[0] === 'abort' && entry[1] === 'Marcas.xlsx'), true)
     assert.match(h.props.get('#RecordsExcel_message').text, /Marcas\.backup-/)
+})
+
+test('category update uses its own endpoint without screen filters and retains the exact backup-first sequence', async () => {
+    const h = harness({ categories: true })
+    await h.save()
+    assert.equal(h.request().url, '/api/registry/records/excel/categories')
+    assert.equal(h.request().options.body.values.filters, undefined)
+    assert.equal(h.writes[0][2], h.original)
+    assert.equal(h.writes[1][0], 'close')
+    assert.equal(h.writes[2][1], 'Marcas.xlsx')
+    const failed = harness({ categories: true, backupFailure: true })
+    await failed.save()
+    assert.equal(failed.writes.some(entry => entry[1] === 'Marcas.xlsx'), false)
 })

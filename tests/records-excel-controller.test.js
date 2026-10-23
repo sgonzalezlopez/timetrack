@@ -5,7 +5,7 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","season":"2026-2027","groupBy":"none"}',
-    failure, queryFailure } = {}) {
+    failure, queryFailure, categories = false } = {}) {
     const calls = [], exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/records-excel.controller.js'), 'utf8'), {
         exports, Buffer, console,
@@ -20,6 +20,11 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
                 calls.push({ buffer, records, options })
                 if (failure) throw new Error(failure)
                 return { buffer: Buffer.from('updated'), count: 1, groups: 1 }
+            },
+            updateCategoriesExcel: async (buffer, records, options) => {
+                calls.push({ buffer, records, options, categories: true })
+                if (failure) throw new Error(failure)
+                return { buffer: Buffer.from('categories'), count: 2, groups: 7 }
             }
         }
     })
@@ -31,7 +36,7 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
     const res = { __: value => value, status: value => { status = value; return res },
         set: (key, value) => { headers[key] = value }, send: value => { body = value } }
     return { calls, req, run: async () => {
-        await exports.update(req, res, err => { nextError = err })
+        await (categories ? exports.updateCategories : exports.update)(req, res, err => { nextError = err })
         return { status, body, headers, nextError }
     } }
 }
@@ -48,6 +53,18 @@ test('Excel endpoint queries current filters and authenticated user instead of t
     assert.equal(h.calls[1].records[0].id, 'filtered')
     assert.equal(h.calls[1].options.seasonStartMonth, 7)
     assert.equal(result.headers['X-Records-Count'], '1')
+})
+
+test('category endpoint ignores submitted filters and uses all Spanish non-training results', async () => {
+    const h = harness({ categories: true, filters: '{"country":"FRA","top":"1","category":["LA2"],"season":"2000"}' })
+    const result = await h.run()
+    assert.equal(result.status, 200)
+    assert.equal(result.body.toString(), 'categories')
+    assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].query)), {
+        top: '*', bestForSkater: 'false', groupBy: 'none', country: 'ESP', training: 'false'
+    })
+    assert.equal(h.calls[1].categories, true)
+    assert.equal(h.calls[1].options.seasonStartMonth, 7)
 })
 
 test('Excel endpoint forwards the calendar-year season configuration for inline', async () => {

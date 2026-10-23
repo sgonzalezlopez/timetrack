@@ -43,8 +43,14 @@ El ranking historico conserva los filtros actuales y admite parciales incompleto
 con total valido. Si falla la fecha, prueba, patinador, sexo, evento o total,
 el error incluye todos los registros afectados y sus motivos concretos; no guarda
 un Excel parcial ni omite registros silenciosamente.
+La carpeta y el archivo seleccionados se mantienen al abrir cualquiera de los tres
+actualizadores durante la misma visita a Mejores registros. Solo se solicita otra
+carpeta al pulsar el selector; cancelar ese selector conserva la seleccion anterior.
 El ranking historico admite M, F y X (mixto), conservando bloques independientes
 por prueba y sexo, incluido el relevo mixto. Allround mantiene sus bloques M/F.
+En hielo (temporada configurada desde julio), los bloques de 100 m se colocan al
+principio, M/F/X, manteniendo el orden de los demas bloques. La fecha enlazada
+de actualizacion permanece en la primera fila de bloques, junto al primero de 100 m.
 Al actualizar se respeta el orden y el nombre de los bloques prueba/sexo existentes
 en el libro; los bloques nuevos se anaden al final de cada agrupacion de filtros.
 Se conserva el formato de tiempo por bloque: milisegundos con separador de miles

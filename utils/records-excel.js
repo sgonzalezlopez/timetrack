@@ -157,9 +157,13 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
     let number = headerRow + 1
     const ordered = [...groups.values()]
     const extras = [...new Set(ordered.map(group => group.extra))]
+    const order = group => {
+        const key = blockKey(group.race, group.gender)
+        if (seasonStartMonth === 7 && /^100:[MFX]$/.test(key)) return -3 + 'MFX'.indexOf(group.gender)
+        return blocks.get(key)?.order ?? blocks.size
+    }
     ordered.sort((a, b) => extras.indexOf(a.extra) - extras.indexOf(b.extra) ||
-        (blocks.get(blockKey(a.race, a.gender))?.order ?? blocks.size) -
-        (blocks.get(blockKey(b.race, b.gender))?.order ?? blocks.size))
+        order(a) - order(b))
     for (const group of ordered) {
         const block = blocks.get(blockKey(group.race, group.gender))
         const heading = addRow(number++, block ? block.heading : headingTemplate)

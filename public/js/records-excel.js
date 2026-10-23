@@ -33,8 +33,6 @@
             categories ? 'RECORDS_CATEGORIES_UPDATE' : 'RECORDS_EXCEL_UPDATE'))
         $('#RecordsExcel_help').text(text(allround ? 'RECORDS_ALLROUND_HELP' :
             categories ? 'RECORDS_CATEGORIES_HELP' : 'RECORDS_EXCEL_HELP'))
-        folder = null
-        $('#RecordsExcel_file').empty()
         $('#RecordsExcel_message').prop('hidden', true)
         setBusy(false)
         bootstrap.Modal.getOrCreateInstance(document.getElementById('RecordsExcelModal')).show()

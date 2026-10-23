@@ -22,7 +22,8 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
         getFile: async () => ++reads > 1 && changed ? { ...original, lastModified: 2 } : original,
         createWritable: async () => writer(name)
     }) }
-    const document = {}
+    let pickerCalls = 0
+    const document = { getElementById: id => ({ id }) }
     function $(key) {
         if (key === document) return { on: (_event, selector, callback) => handlers.set(selector, callback) }
         if (!props.has(key)) props.set(key, {})
@@ -32,7 +33,8 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
             val: () => original.name,
             text: value => { state.text = value; return element },
             prop: (name, value) => { state[name] = value; return element },
-            toggleClass: () => element
+            toggleClass: () => element,
+            empty: () => { state.emptied = true; return element }
         }
         return element
     }
@@ -43,7 +45,11 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
     const source = fs.readFileSync(path.join(__dirname, '../public/js/records-excel.js'), 'utf8')
     vm.runInNewContext(source.replace(/\}\(\)\)\s*$/, `folder = testFolder; categories = ${categories}; allround = ${allround}; }())`), {
         $, document, testFolder: folder, console, FormData,
-        recordsExcelText: {}, window: { confirm: () => true }, crypto: { randomUUID: () => 'unique' },
+        recordsExcelText: {}, window: { confirm: () => true, showDirectoryPicker: async () => {
+            pickerCalls++
+            throw Object.assign(new Error('cancelled'), { name: 'AbortError' })
+        } }, crypto: { randomUUID: () => 'unique' },
+        bootstrap: { Modal: { getOrCreateInstance: () => ({ show() {} }) } },
         core: { forms: { parse: () => ({ top: '3', race: '500', bestForSkater: 'true' }) } },
         fetch: async (url, options) => {
             request = { url, options }
@@ -51,7 +57,9 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
                 json: async () => ({ message: serverMessage }), headers: { get: () => '1' } }
         }
     })
-    return { writes, props, original, request: () => request, save: () => handlers.get('#RecordsExcel_save')() }
+    return { writes, props, original, request: () => request, save: () => handlers.get('#RecordsExcel_save')(),
+        open: id => handlers.get('#RecordsExcel_open, #RecordsCategoriesExcel_open, #RecordsAllroundExcel_open').call({ id }),
+        pick: () => handlers.get('#RecordsExcel_folder')(), pickerCalls: () => pickerCalls }
 }
 
 test('writes exact original backup and closes it before overwriting original with server results', async () => {
@@ -122,4 +130,29 @@ test('invalid Allround report is displayed in full as text without writing any f
     await h.save()
     assert.deepEqual(h.writes, [])
     assert.equal(h.props.get('#RecordsExcel_message').text, `RECORDS_EXCEL_ERROR ${serverMessage}`)
+})
+
+test('switching Excel modes retains the selected folder and file without reopening the picker', async () => {
+    const h = harness()
+    for (const [id, url] of [
+        ['RecordsAllroundExcel_open', '/api/registry/records/excel/allround'],
+        ['RecordsCategoriesExcel_open', '/api/registry/records/excel/categories'],
+        ['RecordsExcel_open', '/api/registry/records/excel']
+    ]) {
+        h.open(id)
+        await h.save()
+        assert.equal(h.request().url, url)
+        assert.equal(h.props.get('#RecordsExcel_file')?.emptied, undefined)
+    }
+    assert.equal(h.pickerCalls(), 0)
+})
+
+test('cancelling an explicit folder change preserves the previous selection', async () => {
+    const h = harness()
+    await h.pick()
+    assert.equal(h.pickerCalls(), 1)
+    h.open('RecordsCategoriesExcel_open')
+    await h.save()
+    assert.equal(h.request().url, '/api/registry/records/excel/categories')
+    assert.equal(h.writes[0][2], h.original)
 })

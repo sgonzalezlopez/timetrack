@@ -97,6 +97,28 @@ test('formats 500m totals of one minute or more as minutes while preserving shor
     })
 })
 
+test('ice puts 100m first and keeps the linked update date above the results, inline retains template order', async () => {
+    for (const seasonStartMonth of [7, 1]) {
+        const workbook = await fixture()
+        const sheet = workbook.getWorksheet('Clas. histórica')
+        sheet.getCell('A2').value = '500M, F'
+        sheet.getCell('A5').value = '100M, F'
+        sheet.getCell('A8').value = '100M, M'
+        const { updated } = await update(workbook, [
+            result(),
+            result({ race: '100', distance: 100, times: [12000] }),
+            result({ race: '100', distance: 100, times: [11000], skater: { fullname: 'Man', gender: 'M' } })
+        ], { seasonStartMonth })
+        const out = updated.getWorksheet('Clas. histórica')
+        assert.deepEqual([2, 4, 6].map(row => out.getCell(`A${row}`).value),
+            seasonStartMonth === 7 ? ['100M, M', '100M, F', '500M, F'] : ['500M, F', '100M, F', '100M, M'])
+        assert.equal(out.getCell('D2').value, 'A fecha:')
+        assert.equal(out.getCell('E2').formula, "'Índice'!D2")
+        assert.equal(out.getCell('E2').value.result.toISOString(), '2026-10-23T00:00:00.000Z')
+        assert.equal(out.getCell('C3').value, seasonStartMonth === 7 ? 'Man' : 'Ona Rodríguez Cornejo')
+    }
+})
+
 test('recognizes reordered columns instead of using fixed column positions', async () => {
     const { updated } = await update(await fixture({ reordered: true }), [result()])
     const sheet = updated.getWorksheet('Clas. histórica')

@@ -110,7 +110,7 @@ exports.find = (req, res) => {
     }
 }
 
-exports.findRecords = (req, res) => {
+async function getRecords(req) {
     try {
         for (const key in req.body) {
             if (Object.hasOwnProperty.call(req.body, key)) {
@@ -129,7 +129,7 @@ exports.findRecords = (req, res) => {
         if (req.body.gender) skaterPopulate.match.gender = { $eq: req.body.gender }
         if (req.body.country) skaterPopulate.match.country = { $eq: req.body.country }
 
-        Model.find(parseBody(req.body))
+        return Model.find(filter.getFilter('Registry', parseBody(req.body), req.user))
             .populate(skaterPopulate)
             .populate({ path: 'club' })
             .populate(competitionPopulate)
@@ -150,24 +150,26 @@ exports.findRecords = (req, res) => {
 
                 var gb = req.body.groupBy != 'none' ? [req.body.groupBy, 'race', 'gender'] : ['race', 'gender'];
 
-                groupedByRace = tidy(
+                const groupedByRace = tidy(
                     items,
                     arrange('totalTime'),
                     groupBy(gb, [], groupBy.entries())
                 )
 
-                bestByRace = getBestRecords(groupedByRace, req.body.top || 1, req.body.bestForSkater || false)
+                const bestByRace = getBestRecords(groupedByRace, req.body.top || 1, req.body.bestForSkater || false)
 
-                res.send(bestByRace)
-            })
-            .catch(err => {
-                console.error(err);
-                res.status(500).send(err)
+                return bestByRace
             })
     } catch (err) {
         console.error(err);
         throw err
     }
+}
+
+exports.getRecords = getRecords
+exports.findRecords = async (req, res, next) => {
+    try { res.send(await getRecords(req)) }
+    catch (err) { next(err) }
 }
 
 exports.getStatsSummary = async (req, res) => {

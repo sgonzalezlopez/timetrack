@@ -3,6 +3,7 @@ const express = require('express')
 const router = express.Router();
 const controller = require("../controllers/registry.controller");
 const importer = require("../controllers/registry-import.controller");
+const recordsExcel = require("../controllers/records-excel.controller");
 const authentication = require(path.join(__corePath, '/middlewares/authentication'))
 const authorization = require(path.join(__corePath, '/middlewares/authorization'))
 
@@ -19,6 +20,7 @@ router.post("/stats/summary/find", authorization.checkPermision('registry', 'R')
 router.post("/stats/race", authorization.checkPermision('registry', 'R'), controller.getStatsRace);
 router.post("/stats/race/find", authorization.checkPermision('registry', 'R'), controller.getStatsRace);
 router.post("/records/find", authorization.checkPermision('registry', 'R'), controller.findRecords);
+router.post("/records/excel", authorization.checkPermision('registry', 'R'), authorization.isAdmin, recordsExcel.update);
 router.post("/find", authorization.checkPermision('registry', 'R'), controller.find);
 router.get("/:id", authorization.checkPermision('registry', 'R'), controller.get);
 router.put("/:id", authorization.checkPermision('registry', 'U'), controller.update);

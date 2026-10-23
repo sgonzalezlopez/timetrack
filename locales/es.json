@@ -321,5 +321,22 @@
   "IMPORT_NOTHING_SELECTED": "Todas las filas están en Omitir. Selecciona Importar en las filas que quieras guardar y elige su patinador. Para crear patinadores nuevos, marca la casilla y vuelve a Leer y revisar.",
   "IMPORT_EXPIRED": "Revisión caducada, ya utilizada o en curso. Vuelve a leer el fichero.",
   "IMPORT_INVALID_CHOICES": "Selecciones de importación no válidas.",
-  "IMPORT_ACCESS_CHANGED": "El registro ya no está disponible o no tienes acceso."
+  "IMPORT_ACCESS_CHANGED": "El registro ya no está disponible o no tienes acceso.",
+  "RECORDS_EXCEL_UPDATE": "Actualizar Excel",
+  "RECORDS_EXCEL_HELP": "Selecciona la carpeta y el Excel. Se reemplazará toda Clas. histórica con los filtros actuales, incluidos Top y Mejor por patinador, y se actualizará la fecha de Índice. Antes de guardar se creará un respaldo del original en la misma carpeta. Cierra el archivo en Excel antes de continuar.",
+  "RECORDS_EXCEL_FOLDER": "Seleccionar carpeta",
+  "RECORDS_EXCEL_UNSUPPORTED": "Para actualizar el archivo en disco utiliza Chrome o Edge desde HTTPS (o localhost), con permiso de acceso a archivos.",
+  "RECORDS_EXCEL_CONFIRM": "Se reemplazará toda Clas. histórica con los filtros actuales, incluso si no hay resultados, y se actualizará la fecha de Índice. Se creará una copia de respaldo al lado del original. ¿Continuar?",
+  "RECORDS_EXCEL_SAVED": "Excel actualizado. Registros / bloques:",
+  "RECORDS_EXCEL_BACKUP": "Copia de respaldo:",
+  "RECORDS_EXCEL_ERROR": "No se pudo completar la actualización.",
+  "RECORDS_EXCEL_CHANGED": "El archivo cambió mientras se calculaban los resultados. No se ha sobrescrito; vuelve a intentarlo.",
+  "RECORDS_EXCEL_NO_FILES": "No hay archivos .xlsx en esta carpeta.",
+  "RECORDS_EXCEL_FILE": "Excel no válido o mayor de 25 MB. Usa un archivo .xlsx.",
+  "RECORDS_EXCEL_FILTERS": "Filtros de Mejores registros no válidos.",
+  "RECORDS_EXCEL_SHEET": "No se encuentra una única hoja Clas. histórica.",
+  "RECORDS_EXCEL_COLUMNS": "No se reconocen las columnas de la clasificación o hay columnas repetidas.",
+  "RECORDS_EXCEL_DATE": "No se encuentra la celda Fecha de actualización de Índice.",
+  "RECORDS_EXCEL_LAYOUT": "La clasificación tiene celdas combinadas en la zona de datos. No se modifica para evitar perder información.",
+  "RECORDS_EXCEL_DATA": "Hay registros incompletos o tiempos no válidos. Revisa los resultados antes de actualizar el Excel."
 }

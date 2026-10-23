@@ -137,6 +137,9 @@
 						<button id="RecordsForm_search_btn" type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#searchpanel">
 							<%= __('SEARCH') %>
 						</button>
+						<% if (locals.user.roles.includes('admin')) { %>
+						<button id="RecordsExcel_open" type="button" class="btn btn-purple float-end"><%= __('RECORDS_EXCEL_UPDATE') %></button>
+						<% } %>
 					</div>
 				</div>
 			</div>
@@ -270,3 +273,6 @@
 		return Math.round(row.distance*3600/row.totalTime*100)/100 + " km/h"
    }
 </script>
+<% if (locals.user.roles.includes('admin')) { %>
+<%- include('./records-excel.ejs') %>
+<% } %>

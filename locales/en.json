@@ -483,5 +483,22 @@
     "IMPORT_NOTHING_SELECTED": "All rows are set to Skip. Select Import for the rows to save and choose their skater. To create new skaters, check the box and read the file again.",
     "IMPORT_EXPIRED": "Review expired, already used or busy. Read the file again.",
     "IMPORT_INVALID_CHOICES": "Invalid import selections.",
-    "IMPORT_ACCESS_CHANGED": "The record is no longer available or accessible."
+    "IMPORT_ACCESS_CHANGED": "The record is no longer available or accessible.",
+    "RECORDS_EXCEL_UPDATE": "Update Excel",
+    "RECORDS_EXCEL_HELP": "Select the folder and workbook. All of Clas. histórica will be replaced using the current filters, including Top and Best per skater, and the index date will be updated. A backup is saved beside the original before writing. Close the workbook in Excel first.",
+    "RECORDS_EXCEL_FOLDER": "Select folder",
+    "RECORDS_EXCEL_UNSUPPORTED": "Use Chrome or Edge over HTTPS (or localhost) with file access permission to update the file on disk.",
+    "RECORDS_EXCEL_CONFIRM": "Replace all of Clas. histórica using the current filters, even if there are no results, and update the index date? A backup will be created beside the original.",
+    "RECORDS_EXCEL_SAVED": "Workbook updated. Results / groups:",
+    "RECORDS_EXCEL_BACKUP": "Backup:",
+    "RECORDS_EXCEL_ERROR": "Could not complete the update.",
+    "RECORDS_EXCEL_CHANGED": "The file changed while results were calculated. It was not overwritten; try again.",
+    "RECORDS_EXCEL_NO_FILES": "No .xlsx files found in this folder.",
+    "RECORDS_EXCEL_FILE": "Invalid Excel file or file over 25 MB. Use an .xlsx file.",
+    "RECORDS_EXCEL_FILTERS": "Invalid best results filters.",
+    "RECORDS_EXCEL_SHEET": "A unique Clas. histórica worksheet was not found.",
+    "RECORDS_EXCEL_COLUMNS": "Classification columns are not recognized or are duplicated.",
+    "RECORDS_EXCEL_DATE": "The index update-date cell was not found.",
+    "RECORDS_EXCEL_LAYOUT": "The result area contains merged cells. The workbook was not modified to prevent data loss.",
+    "RECORDS_EXCEL_DATA": "Some results are incomplete or have invalid times. Review them before updating Excel."
 }

@@ -1,5 +1,35 @@
 # API externa de TimeTrack
 
+## Actualizacion del Excel de Mejores registros (interfaz autenticada)
+
+La actualizacion de Excel solo esta disponible para administradores: el boton,
+el modal y su script no se incluyen para otros roles, y la API verifica el rol admin.
+El boton `Actualizar Excel` utiliza los filtros actuales de Mejores registros,
+incluidos Top, Mejor por patinador y Agrupar por. Reutiliza la misma consulta del
+servidor y sus restricciones de acceso; no acepta filas de resultados del cliente.
+
+`POST /api/registry/records/excel` requiere rol admin y lectura de registros y recibe multipart:
+`file` (libro `.xlsx`, maximo 25 MB) y `filters` (JSON del formulario).
+Devuelve el libro actualizado con `X-Records-Count` y `X-Records-Groups`.
+Reconoce la hoja `Clas. historica` con o sin tildes/puntuacion, detecta las columnas
+por sus cabeceras y reemplaza toda su clasificacion, incluso con cero resultados.
+Conserva las otras hojas, formulas, anchos y estilos de las filas modelo. Reconstruye
+las secciones por prueba y sexo y, si procede, por la agrupacion seleccionada.
+Los tiempos totales siguen en milisegundos y los parciales se escriben formateados.
+Actualiza la celda junto a `Fecha de actualizacion` en `Indice` y la fecha enlazada
+en la clasificacion; fuerza recalculo de formulas al abrir el libro.
+Una estructura no reconocida o celdas combinadas en la zona de datos producen un
+error explicito, sin sobrescribir el archivo.
+
+Para actualizar el original en el equipo del usuario se necesita Chrome o Edge,
+HTTPS (o localhost) y permiso de acceso a la carpeta mediante File System Access API.
+El usuario selecciona carpeta y archivo y confirma el reemplazo. El navegador
+guarda primero una copia exacta del original con nombre `.backup-<fecha>-<uuid>.xlsx`
+en la misma carpeta; solo despues escribe el actualizado. Si falla el respaldo,
+no escribe el original. Si el fichero cambia durante el calculo, cancela el guardado.
+El servidor no recibe rutas locales ni escribe archivos arbitrarios en disco.
+Cerrar el libro en Excel antes de actualizarlo para evitar bloqueos.
+
 ## Importacion de resultados (interfaz autenticada)
 
 Cada aplicacion registra adaptadores mediante `application.run({ registryImportFormats: [...] })`.

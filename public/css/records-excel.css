@@ -1,0 +1,19 @@
+.btn-maroon,
+.btn-maroon:disabled,
+.btn-maroon.disabled {
+    color: #fff;
+    background-color: #800020;
+    border-color: #800020;
+}
+
+.btn-maroon:hover,
+.btn-maroon:focus,
+.btn-maroon:active {
+    color: #fff;
+    background-color: #66001a;
+    border-color: #66001a;
+}
+
+.btn-maroon:focus {
+    box-shadow: 0 0 0 0.25rem rgba(128, 0, 32, 0.4);
+}

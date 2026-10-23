@@ -324,6 +324,7 @@
   "IMPORT_ACCESS_CHANGED": "El registro ya no está disponible o no tienes acceso.",
   "RECORDS_EXCEL_UPDATE": "Actualizar ránking histórico",
   "RECORDS_EXCEL_INVALID_SKATER": "El registro no tiene patinador",
+  "RECORDS_EXCEL_INVALID_GENDER": "El sexo debe ser M, F o X (mixto)",
   "RECORDS_EXCEL_INVALID_EVENT": "El registro no tiene evento",
   "RECORDS_EXCEL_INVALID_RACE": "El registro no tiene prueba",
   "RECORDS_EXCEL_INVALID_DATE": "El registro no tiene una fecha válida",

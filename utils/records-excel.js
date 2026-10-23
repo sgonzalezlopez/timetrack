@@ -86,7 +86,7 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         })
         const date = row.getCell(columns.get('date')).value
         if (!resultTemplate && date instanceof Date) resultTemplate = styles(number)
-        if (!headingTemplate && /,\s*[MF]\s*$/i.test(cellText(row.getCell(1).value))) headingTemplate = styles(number)
+        if (!headingTemplate && /,\s*[MFX]\s*$/i.test(cellText(row.getCell(1).value))) headingTemplate = styles(number)
     })
     if (sheet.model.merges.some(range => {
         const match = range.match(/^[A-Z]+(\d+):[A-Z]+(\d+)$/)
@@ -98,7 +98,7 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         if (!record.skater) reasons.push('RECORDS_EXCEL_INVALID_SKATER')
         if (!record.competition) reasons.push('RECORDS_EXCEL_INVALID_EVENT')
         if (!record.race) reasons.push('RECORDS_EXCEL_INVALID_RACE')
-        if (record.skater && !['F', 'M'].includes(record.skater.gender)) reasons.push('RECORDS_ALLROUND_INVALID_GENDER')
+        if (record.skater && !['F', 'M', 'X'].includes(record.skater.gender)) reasons.push('RECORDS_EXCEL_INVALID_GENDER')
         if (!record.date || !Number.isFinite(new Date(record.date).getTime())) reasons.push('RECORDS_EXCEL_INVALID_DATE')
         if (finalTime(record) === null) reasons.push('RECORDS_ALLROUND_INVALID_TIMES')
         if (reasons.length) {

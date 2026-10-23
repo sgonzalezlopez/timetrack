@@ -37,12 +37,14 @@ Cerrar el libro en Excel antes de actualizarlo para evitar bloqueos.
 Los tres actualizadores conservan la presencia de cabeceras y filtros de las tablas
 del libro, incluidos los valores predeterminados de Excel cuando los atributos
 no aparecen en el XML. No se generan filtros automaticos sin un rango valido.
-El boton principal se denomina `Actualizar ranking historico` (azul); categorias
+El boton principal se denomina `Actualizar ranking historico` (granate); categorias
 es verde y Allround malva. El boton de confirmar del modal usa el mismo color.
 El ranking historico conserva los filtros actuales y admite parciales incompletos
 con total valido. Si falla la fecha, prueba, patinador, sexo, evento o total,
 el error incluye todos los registros afectados y sus motivos concretos; no guarda
 un Excel parcial ni omite registros silenciosamente.
+El ranking historico admite M, F y X (mixto), conservando bloques independientes
+por prueba y sexo, incluido el relevo mixto. Allround mantiene sus bloques M/F.
 
 ### Actualizacion por categorias
 

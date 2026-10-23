@@ -486,6 +486,7 @@
     "IMPORT_ACCESS_CHANGED": "The record is no longer available or accessible.",
     "RECORDS_EXCEL_UPDATE": "Update historical ranking",
     "RECORDS_EXCEL_INVALID_SKATER": "The result has no skater",
+    "RECORDS_EXCEL_INVALID_GENDER": "Gender must be M, F or X (mixed)",
     "RECORDS_EXCEL_INVALID_EVENT": "The result has no event",
     "RECORDS_EXCEL_INVALID_RACE": "The result has no race",
     "RECORDS_EXCEL_INVALID_DATE": "The result has no valid date",

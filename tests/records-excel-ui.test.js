@@ -5,23 +5,48 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ backupFailure = false, changed = false, requestFailure = false, writeFailure = false,
+    invalidateHandles = false, changedAfterBackup = false, readFailure = false, closeFailure = false,
     serverMessage = 'server failure',
     categories = false, allround = false } = {}) {
     const handlers = new Map(), props = new Map(), writes = []
-    const original = { name: 'Marcas.xlsx', lastModified: 1, size: 100 }
-    let reads = 0, request
+    const original = { name: 'Marcas.xlsx', lastModified: 1, size: 100, type: 'application/octet-stream',
+        arrayBuffer: async () => {
+            if (readFailure) throw new DOMException('file state changed', 'NotReadableError')
+            return new Uint8Array(100).fill(42).buffer
+        } }
+    let reads = 0, request, generation = 0, backupClosed = false
     const writer = name => ({
         write: async contents => {
             writes.push(['write', name, contents])
             if (backupFailure && name !== original.name || writeFailure && name === original.name) throw new Error('write failed')
         },
-        close: async () => { writes.push(['close', name]) },
+        close: async () => {
+            writes.push(['close', name])
+            if (closeFailure && name === original.name) throw new DOMException('file state changed', 'InvalidStateError')
+            if (name !== original.name) backupClosed = true
+        },
         abort: async () => { writes.push(['abort', name]) }
     })
-    const folder = { getFileHandle: async name => ({
-        getFile: async () => ++reads > 1 && changed ? { ...original, lastModified: 2 } : original,
-        createWritable: async () => writer(name)
-    }) }
+    const folder = { getFileHandle: async name => {
+        if (name !== original.name) generation++
+        const handleGeneration = generation
+        const checkHandle = () => {
+            if (invalidateHandles && handleGeneration !== generation) throw new DOMException('stale handle', 'InvalidStateError')
+        }
+        return {
+            getFile: async () => {
+                checkHandle()
+                const requestAtRead = request
+                const file = { ...original, arrayBuffer: async () => {
+                    if (request !== requestAtRead) throw new DOMException('file state changed', 'NotReadableError')
+                    return original.arrayBuffer()
+                } }
+                if (++reads > 1 && (changed || changedAfterBackup && backupClosed)) file.lastModified = 2
+                return file
+            },
+            createWritable: async () => { checkHandle(); return writer(name) }
+        }
+    } }
     let pickerCalls = 0
     const document = { getElementById: id => ({ id }) }
     function $(key) {
@@ -44,7 +69,7 @@ function harness({ backupFailure = false, changed = false, requestFailure = fals
     }
     const source = fs.readFileSync(path.join(__dirname, '../public/js/records-excel.js'), 'utf8')
     vm.runInNewContext(source.replace(/\}\(\)\)\s*$/, `folder = testFolder; categories = ${categories}; allround = ${allround}; }())`), {
-        $, document, testFolder: folder, console, FormData,
+        $, document, testFolder: folder, console, FormData, Blob,
         recordsExcelText: {}, window: { confirm: () => true, showDirectoryPicker: async () => {
             pickerCalls++
             throw Object.assign(new Error('cancelled'), { name: 'AbortError' })
@@ -67,7 +92,9 @@ test('writes exact original backup and closes it before overwriting original wit
     await h.save()
     assert.equal(h.writes.length, 4)
     assert.match(h.writes[0][1], /^Marcas\.backup-.*-unique\.xlsx$/)
-    assert.equal(h.writes[0][2], h.original)
+    assert.notEqual(h.writes[0][2], h.original)
+    assert.deepEqual(new Uint8Array(await h.writes[0][2].arrayBuffer()), new Uint8Array(100).fill(42))
+    assert.equal(h.request().options.body.values.file, h.writes[0][2])
     assert.equal(h.writes[1][0], 'close')
     assert.equal(h.writes[2][1], 'Marcas.xlsx')
     assert.equal(h.writes[2][2], 'updated')
@@ -96,7 +123,7 @@ test('category update uses its own endpoint without screen filters and retains t
     await h.save()
     assert.equal(h.request().url, '/api/registry/records/excel/categories')
     assert.equal(h.request().options.body.values.filters, undefined)
-    assert.equal(h.writes[0][2], h.original)
+    assert.equal(h.writes[0][2], h.request().options.body.values.file)
     assert.equal(h.writes[1][0], 'close')
     assert.equal(h.writes[2][1], 'Marcas.xlsx')
     const failed = harness({ categories: true, backupFailure: true })
@@ -109,7 +136,7 @@ test('allround update uses its own endpoint and saves the original backup before
     await h.save()
     assert.equal(h.request().url, '/api/registry/records/excel/allround')
     assert.equal(h.request().options.body.values.filters, undefined)
-    assert.equal(h.writes[0][2], h.original)
+    assert.equal(h.writes[0][2], h.request().options.body.values.file)
     assert.equal(h.writes[1][0], 'close')
     assert.equal(h.writes[2][1], 'Marcas.xlsx')
     const failed = harness({ allround: true, backupFailure: true })
@@ -154,5 +181,43 @@ test('cancelling an explicit folder change preserves the previous selection', as
     h.open('RecordsCategoriesExcel_open')
     await h.save()
     assert.equal(h.request().url, '/api/registry/records/excel/categories')
-    assert.equal(h.writes[0][2], h.original)
+    assert.equal(h.writes[0][2], h.request().options.body.values.file)
+})
+
+test('refreshes the target handle after creating the backup in every Excel mode', async () => {
+    for (const mode of [{}, { categories: true }, { allround: true }]) {
+        const h = harness({ ...mode, invalidateHandles: true })
+        await h.save()
+        assert.equal(h.writes.length, 4)
+        assert.equal(h.writes[2][1], 'Marcas.xlsx')
+        assert.match(h.props.get('#RecordsExcel_message').text, /RECORDS_EXCEL_SAVED/)
+    }
+})
+
+test('a file changed after the backup is never opened for writing', async () => {
+    const h = harness({ changedAfterBackup: true })
+    await h.save()
+    assert.equal(h.writes.length, 2)
+    assert.match(h.props.get('#RecordsExcel_message').text, /RECORDS_EXCEL_CHANGED/)
+    assert.match(h.props.get('#RecordsExcel_message').text, /Marcas\.backup-/)
+})
+
+test('an unreadable original stops before uploading or writing any file', async () => {
+    const h = harness({ readFailure: true })
+    await h.save()
+    assert.equal(h.request(), undefined)
+    assert.deepEqual(h.writes, [])
+    assert.match(h.props.get('#RecordsExcel_message').text, /RECORDS_EXCEL_FILE_STATE/)
+    assert.match(h.props.get('#RecordsExcel_message').text, /NotReadableError/)
+})
+
+test('a file state error when closing the target aborts and reports the backup, never success', async () => {
+    const h = harness({ closeFailure: true })
+    await h.save()
+    assert.equal(h.writes.some(entry => entry[0] === 'abort' && entry[1] === 'Marcas.xlsx'), true)
+    const message = h.props.get('#RecordsExcel_message').text
+    assert.match(message, /RECORDS_EXCEL_FILE_STATE/)
+    assert.match(message, /InvalidStateError/)
+    assert.match(message, /Marcas\.backup-/)
+    assert.doesNotMatch(message, /RECORDS_EXCEL_SAVED/)
 })

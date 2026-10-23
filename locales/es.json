@@ -353,6 +353,7 @@
   "RECORDS_EXCEL_SAVED": "Excel actualizado. Registros / bloques:",
   "RECORDS_EXCEL_BACKUP": "Copia de respaldo:",
   "RECORDS_EXCEL_ERROR": "No se pudo completar la actualización.",
+  "RECORDS_EXCEL_FILE_STATE": "El navegador no pudo acceder al estado actual del archivo. Cierra el fichero en Excel, comprueba que no se esté modificando o sincronizando y vuelve a seleccionar la carpeta antes de reintentar. No se ha confirmado el guardado del archivo actualizado.",
   "RECORDS_EXCEL_CHANGED": "El archivo cambió mientras se calculaban los resultados. No se ha sobrescrito; vuelve a intentarlo.",
   "RECORDS_EXCEL_NO_FILES": "No hay archivos .xlsx en esta carpeta.",
   "RECORDS_EXCEL_FILE": "Excel no válido o mayor de 25 MB. Usa un archivo .xlsx.",

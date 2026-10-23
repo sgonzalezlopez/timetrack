@@ -67,8 +67,9 @@
         try {
             const handle = await folder.getFileHandle(name)
             const original = await handle.getFile()
+            const originalContents = new Blob([await original.arrayBuffer()], { type: original.type })
             const data = new FormData()
-            data.set('file', original, name)
+            data.set('file', originalContents, name)
             if (!categories && !allround) data.set('filters', JSON.stringify(core.forms.parse('RecordsForm')))
             const response = await fetch(allround ? '/api/registry/records/excel/allround' :
                 categories ? '/api/registry/records/excel/categories' : '/api/registry/records/excel',
@@ -78,23 +79,26 @@
                 throw new Error(error.message || text('RECORDS_EXCEL_ERROR'))
             }
             const updated = await response.blob()
-            const latest = await handle.getFile()
+            const latest = await (await folder.getFileHandle(name)).getFile()
             if (latest.lastModified !== original.lastModified || latest.size !== original.size) {
                 throw new Error(text('RECORDS_EXCEL_CHANGED'))
             }
             const candidate = name.replace(/\.xlsx$/i, '') + `.backup-${new Date().toISOString().replace(/[:.]/g, '-')}-${crypto.randomUUID()}.xlsx`
             const backup = await folder.getFileHandle(candidate, { create: true })
-            await writeFile(backup, original)
+            await writeFile(backup, originalContents)
             backupName = candidate
-            const beforeWrite = await handle.getFile()
+            const target = await folder.getFileHandle(name)
+            const beforeWrite = await target.getFile()
             if (beforeWrite.lastModified !== original.lastModified || beforeWrite.size !== original.size) {
                 throw new Error(text('RECORDS_EXCEL_CHANGED'))
             }
-            await writeFile(handle, updated)
+            await writeFile(target, updated)
             message(`${text('RECORDS_EXCEL_SAVED')} ${response.headers.get('X-Records-Count')} / ` +
                 `${response.headers.get('X-Records-Groups')}\n${name}\n${text('RECORDS_EXCEL_BACKUP')} ${backupName}`, true)
         } catch (err) {
-            message(`${text('RECORDS_EXCEL_ERROR')} ${err.message}${backupName ? `\n${text('RECORDS_EXCEL_BACKUP')} ${backupName}` : ''}`)
+            const detail = err.name === 'InvalidStateError' || err.name === 'NotReadableError' ?
+                `${text('RECORDS_EXCEL_FILE_STATE')}\n${err.name}: ${err.message}` : err.message
+            message(`${text('RECORDS_EXCEL_ERROR')} ${detail}${backupName ? `\n${text('RECORDS_EXCEL_BACKUP')} ${backupName}` : ''}`)
         } finally { setBusy(false) }
     })
     $(document).on('hide.bs.modal', '#RecordsExcelModal', event => { if (busy) event.preventDefault() })

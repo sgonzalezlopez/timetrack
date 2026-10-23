@@ -515,6 +515,7 @@
     "RECORDS_EXCEL_SAVED": "Workbook updated. Results / groups:",
     "RECORDS_EXCEL_BACKUP": "Backup:",
     "RECORDS_EXCEL_ERROR": "Could not complete the update.",
+    "RECORDS_EXCEL_FILE_STATE": "The browser could not access the current file state. Close the file in Excel, make sure it is not being modified or synced, and select the folder again before retrying. Saving the updated file has not been confirmed.",
     "RECORDS_EXCEL_CHANGED": "The file changed while results were calculated. It was not overwritten; try again.",
     "RECORDS_EXCEL_NO_FILES": "No .xlsx files found in this folder.",
     "RECORDS_EXCEL_FILE": "Invalid Excel file or file over 25 MB. Use an .xlsx file.",

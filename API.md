@@ -32,6 +32,11 @@ El usuario selecciona carpeta y archivo y confirma el reemplazo. El navegador
 guarda primero una copia exacta del original con nombre `.backup-<fecha>-<uuid>.xlsx`
 en la misma carpeta; solo despues escribe el actualizado. Si falla el respaldo,
 no escribe el original. Si el fichero cambia durante el calculo, cancela el guardado.
+La subida y el respaldo usan los mismos bytes copiados a memoria antes del calculo,
+sin reutilizar un objeto File que pueda quedar invalidado por cambios en disco.
+Antes de comprobar y escribir el destino se obtiene de nuevo su acceso desde la
+carpeta, tambien despues de crear el respaldo. Los errores de estado del archivo
+se notifican sin anunciar exito y, si el respaldo ya se completo, incluyen su nombre.
 El servidor no recibe rutas locales ni escribe archivos arbitrarios en disco.
 Cerrar el libro en Excel antes de actualizarlo para evitar bloqueos.
 Los tres actualizadores conservan la presencia de cabeceras y filtros de las tablas

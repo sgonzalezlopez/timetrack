@@ -82,6 +82,11 @@ que no cumplan la regla. Se incluyen todos los empates, ordenados por fecha.
 Se anaden 100M solo en bloques y sexos con marcas elegibles. Las marcas de la
 temporada vigente se resaltan en negrita usando la configuracion hielo/ruedas.
 Un bloque o cabecera no reconocidos produce un error antes de generar el archivo.
+Solo se validan las marcas candidatas de los bloques distancia/sexo/categoria
+presentes (incluidos los 100 m anadidos). Un relevo mixto u otra distancia ausentes
+de la plantilla no bloquean la actualizacion. Si existe un bloque X, admite marcas
+mixtas. Las marcas candidatas con fecha o total invalidos producen un informe
+detallado sin duplicados entre bloques y cancelan el guardado completo.
 
 ## Importacion de resultados (interfaz autenticada)
 

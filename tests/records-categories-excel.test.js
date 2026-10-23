@@ -53,7 +53,7 @@ function block(sheet, title) {
     for (let row = found.row + 1; row <= sheet.rowCount; row++) {
         if (sheet.getRow(row).getCell(found.col).value) break
         const label = sheet.getRow(row).getCell(found.col + 1).value
-        if (typeof label === 'string' && /M, [MF]$/.test(label)) {
+        if (typeof label === 'string' && /M, [MFX]$/.test(label)) {
             const result = sheet.getRow(row + 1)
             values.push({ label, row: row + 1, name: result.getCell(found.col + 3).value,
                 category: result.getCell(found.col + 4).value, time: result.getCell(found.col + 5).value, col: found.col })
@@ -68,6 +68,38 @@ test('classifies exact A/B/C groups, all youth and numeric master codes', () => 
         ['LY+', 'y'], ['MYA', 'y'], ['LYC', 'y'], ['M30', 'master'], ['L65', 'master'],
         ['MSA', null], ['MN4', null], ['UNKNOWN', null]
     ]) assert.equal(categoryGroup(code), group)
+})
+
+test('unrepresented mixed and other-distance results do not block category updates', async () => {
+    const { sheet } = await update([
+        record('MA2', 40000),
+        record('MSA', 0, { date: null, distance: 2500,
+            skater: { fullname: 'Mixed relay', country: 'ES', gender: 'X' } }),
+        record('MA2', 0, { date: null, distance: 10000 })
+    ])
+    assert.equal(block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M').time, 40000)
+})
+
+test('supports X slots explicitly present in the category template', async () => {
+    const workbook = await fixture()
+    workbook.getWorksheet('Por Categorías').getCell('C2').value = '2500M, X'
+    const { sheet } = await update([
+        record('MSA', 179650, { distance: 2500, times: [null, 179650], totalTime: 179650,
+            skater: { fullname: 'Mixed relay', country: 'ES', gender: 'X' } })
+    ], {}, workbook)
+    const result = block(sheet, 'ABSOLUTA').find(r => r.label === '2500M, X')
+    assert.equal(result.name, 'Mixed relay')
+    assert.equal(result.time, '02:59.650')
+})
+
+test('reports invalid selected marks once even when used by several category blocks', async () => {
+    await assert.rejects(update([record('MA2', 0, { _id: 'bad', date: null })]), error => {
+        assert.equal(error.message, 'RECORDS_EXCEL_DATA')
+        assert.equal(error.issues.length, 1)
+        assert.equal(error.issues[0].id, 'bad')
+        assert.deepEqual(error.issues[0].reasons, ['RECORDS_EXCEL_INVALID_DATE', 'RECORDS_ALLROUND_INVALID_TIMES'])
+        return true
+    })
 })
 
 test('updates each exact group independently and excludes foreign skaters and training', async () => {

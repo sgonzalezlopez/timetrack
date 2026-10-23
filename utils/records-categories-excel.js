@@ -62,7 +62,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         for (let number = block.row + 1; number <= block.lastRow; number++) {
             const row = sheet.getRow(number)
             const label = cellText(row.getCell(block.columns.get('race')).value)
-            const match = label.match(/^\s*(\d+(?:[.,]\d+)?)\s*M?\s*,\s*([MF])\s*$/i)
+            const match = label.match(/^\s*(\d+(?:[.,]\d+)?)\s*M?\s*,\s*([MFX])\s*$/i)
             if (!match) continue
             const distance = Number(match[1].replace(',', '.'))
             if (block.slots.some(s => s.distance === distance && s.gender === match[2].toUpperCase())) {
@@ -82,18 +82,12 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
     }
     const eligible = records.filter(record => record.skater && ['ES', 'ESP'].includes(record.skater.country) &&
         record.competition && ![true, 'true'].includes(record.competition.training))
-    for (const record of eligible) {
-        if (!['M', 'F'].includes(record.skater.gender) || !record.date ||
-            !Number.isFinite(new Date(record.date).getTime()) || !Number.isFinite(record.distance) || record.distance <= 0 ||
-            finalTime(record) === null) {
-            throw new Error('RECORDS_EXCEL_DATA')
-        }
-    }
     const qualifies = (record, group) => {
         const category = categoryGroup(record.category)
         return group === 'absoluta' || category === group ||
             group === 'junior' && ['junior a', 'junior b', 'junior c'].includes(category)
     }
+    const issues = new Map()
     for (const block of blocks) {
         for (const gender of ['M', 'F']) {
             if (!block.slots.some(s => s.distance === 100 && s.gender === gender) &&
@@ -101,14 +95,32 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
                 block.slots.push({ distance: 100, gender })
             }
         }
-        block.slots.sort((a, b) => a.distance - b.distance || (a.gender === b.gender ? 0 : a.gender === 'M' ? -1 : 1))
+        block.slots.sort((a, b) => a.distance - b.distance || 'MFX'.indexOf(a.gender) - 'MFX'.indexOf(b.gender))
         for (const slot of block.slots) {
             const matches = eligible.filter(r => r.distance === slot.distance &&
                 r.skater.gender === slot.gender && qualifies(r, block.group))
+            for (const record of matches) {
+                const reasons = []
+                if (!record.date || !Number.isFinite(new Date(record.date).getTime())) reasons.push('RECORDS_EXCEL_INVALID_DATE')
+                if (finalTime(record) === null) reasons.push('RECORDS_ALLROUND_INVALID_TIMES')
+                if (reasons.length) issues.set(record, {
+                    id: String(record._id || record.id || ''),
+                    skater: record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim(),
+                    date: record.date ? String(record.date) : '', distance: record.distance, race: record.race || '',
+                    competition: record.competition.fullname || record.competition.name || '',
+                    gender: record.skater.gender, totalTime: finalTime(record),
+                    times: Array.isArray(record.times) ? Array.from(record.times) : null, reasons
+                })
+            }
             const total = finalTime
             matches.sort((a, b) => total(a) - total(b) || new Date(a.date) - new Date(b.date))
             slot.records = matches.length ? matches.filter(r => total(r) === total(matches[0])) : []
         }
+    }
+    if (issues.size) {
+        const error = new Error('RECORDS_EXCEL_DATA')
+        error.issues = [...issues.values()]
+        throw error
     }
     for (const block of blocks) {
         for (let row = block.row; row <= block.lastRow; row++) {

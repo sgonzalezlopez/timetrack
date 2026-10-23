@@ -2,6 +2,7 @@ const ExcelJS = require('exceljs')
 const { normalize } = require('./registry-import')
 const { seasonFor } = require('./registry-import-events')
 const { writeRecordsWorkbook } = require('./records-workbook')
+const { finalTime, hasCompleteSplits } = require('./records-time')
 
 const fields = new Map([
     ['pos', 'position'], ['posicion', 'position'], ['fecha', 'date'], ['patinador', 'skater'],
@@ -95,7 +96,7 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
     for (const record of records) {
         if (!record.skater || !record.competition || !record.race || !['F', 'M'].includes(record.skater.gender) ||
             !record.date || !Number.isFinite(new Date(record.date).getTime()) ||
-            !Array.isArray(record.times) || !record.times.length || record.times.some(time => !Number.isFinite(time) || time <= 0)) {
+            finalTime(record) === null) {
             throw new Error('RECORDS_EXCEL_DATA')
         }
         const extra = groupBy === 'country' ? record.country || record.skater.country :
@@ -122,13 +123,13 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         const heading = addRow(number++, headingTemplate)
         const race = /^\d+(?:[.,]\d+)?$/.test(String(group.race).trim()) ? `${group.race}M` : String(group.race).toUpperCase()
         heading.getCell(1).value = `${group.extra ? `${group.extra} · ` : ''}${race}, ${group.gender}`
-        group.records.sort((a, b) => a.times.reduce((x, y) => x + y, 0) - b.times.reduce((x, y) => x + y, 0))
+        group.records.sort((a, b) => finalTime(a) - finalTime(b))
         group.records.forEach((record, i) => {
-            const totalTime = record.times.reduce((sum, time) => sum + time, 0)
+            const totalTime = finalTime(record)
             const values = {
                 position: i + 1, date: new Date(record.date),
                 skater: record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim(),
-                category: record.category || '', times: record.times.map(splitTime).join(', '),
+                category: record.category || '', times: hasCompleteSplits(record) ? record.times.map(splitTime).join(', ') : '',
                 totalTime, competition: record.competition.fullname || record.competition.name || '',
                 speed: record.distance ? `${Math.round(record.distance * 3600 / totalTime * 100) / 100} km/h` : '',
                 race: record.race, gender: record.skater.gender, distance: record.distance,

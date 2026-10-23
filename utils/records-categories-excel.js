@@ -3,6 +3,7 @@ const { normalize } = require('./registry-import')
 const { seasonFor } = require('./registry-import-events')
 const { cellText, splitTime, getUpdateDateCell } = require('./records-excel')
 const { writeRecordsWorkbook } = require('./records-workbook')
+const { finalTime } = require('./records-time')
 
 const groups = ['absoluta', 'junior', 'junior a', 'junior b', 'junior c', 'y', 'master']
 const headers = new Map([
@@ -84,7 +85,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
     for (const record of eligible) {
         if (!['M', 'F'].includes(record.skater.gender) || !record.date ||
             !Number.isFinite(new Date(record.date).getTime()) || !Number.isFinite(record.distance) || record.distance <= 0 ||
-            !Array.isArray(record.times) || !record.times.length || record.times.some(t => !Number.isFinite(t) || t <= 0)) {
+            finalTime(record) === null) {
             throw new Error('RECORDS_EXCEL_DATA')
         }
     }
@@ -104,7 +105,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         for (const slot of block.slots) {
             const matches = eligible.filter(r => r.distance === slot.distance &&
                 r.skater.gender === slot.gender && qualifies(r, block.group))
-            const total = record => record.times.reduce((sum, time) => sum + time, 0)
+            const total = finalTime
             matches.sort((a, b) => total(a) - total(b) || new Date(a.date) - new Date(b.date))
             slot.records = matches.length ? matches.filter(r => total(r) === total(matches[0])) : []
         }
@@ -140,8 +141,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
                         date: new Date(record.date),
                         skater: record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim(),
                         category: record.category || '',
-                        totalTime: record.distance < 1000 ? record.times.reduce((sum, time) => sum + time, 0) :
-                            splitTime(record.times.reduce((sum, time) => sum + time, 0))
+                        totalTime: record.distance < 1000 ? finalTime(record) : splitTime(finalTime(record))
                     } : {}
                     for (const [field, col] of block.columns) {
                         row.getCell(col).value = values[field] == null ? null : values[field]

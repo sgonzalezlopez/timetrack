@@ -80,11 +80,18 @@ Acepta tanto ES (codigo utilizado por el selector de pais del patinador) como ES
 Si no encuentra ninguna marca elegible, devuelve `RECORDS_ALLROUND_EMPTY` y no genera
 un archivo de reemplazo: la clasificacion existente no se vacia.
 Si hay marcas elegibles con patinador sin identificador, nombre o sexo M/F,
-o con parciales vacios, nulos, no finitos o no positivos, cancela la actualizacion
+o sin un tiempo total final finito mayor que cero, cancela la actualizacion
 completa. No omite estas marcas ni modifica datos de la base de datos.
 El error `RECORDS_EXCEL_DATA` incluye `issues` con todos los registros afectados
 (ID, patinador, sexo, fecha, distancia, evento, parciales en milisegundos y motivos).
 El modal muestra el informe completo como texto, con desplazamiento si es largo.
+Los tres actualizadores utilizan `totalTime` para seleccionar, ordenar y escribir
+las marcas; no interpretan el ultimo parcial como total. Si no se proporciona
+`totalTime`, se utiliza el total calculado por el modelo (suma de parciales,
+permitiendo ceros, nulos y huecos). Un total explicito invalido no se sustituye.
+Los parciales incompletos no bloquean una marca con total valido. En `Clas. historica`
+se deja vacia toda la celda de parciales si alguno falta o no es positivo/finito;
+Allround y Por Categorias solo escriben el tiempo total. No se inventan parciales.
 
 Actualiza `Allround Historico`, con hombres arriba y mujeres debajo. Primero coloca
 quienes tienen las cuatro distancias, ordenados por la suma en segundos:

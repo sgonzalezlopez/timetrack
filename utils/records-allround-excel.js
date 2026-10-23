@@ -2,6 +2,7 @@ const ExcelJS = require('exceljs')
 const { normalize } = require('./registry-import')
 const { cellText, getUpdateDateCell } = require('./records-excel')
 const { writeRecordsWorkbook } = require('./records-workbook')
+const { finalTime } = require('./records-time')
 
 const distances = [500, 1000, 1500, 3000]
 const clone = value => JSON.parse(JSON.stringify(value))
@@ -87,17 +88,16 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
         if (!id) reasons.push('RECORDS_ALLROUND_INVALID_ID')
         if (!['M', 'F'].includes(record.skater.gender)) reasons.push('RECORDS_ALLROUND_INVALID_GENDER')
         if (!name.trim()) reasons.push('RECORDS_ALLROUND_INVALID_NAME')
-        const validTimes = Array.isArray(record.times) && record.times.length &&
-            Array.from(record.times).every(t => Number.isFinite(t) && t > 0) &&
-            Number.isFinite(record.times.reduce((sum, time) => sum + time, 0))
-        if (!validTimes) reasons.push('RECORDS_ALLROUND_INVALID_TIMES')
+        const total = finalTime(record)
+        if (total === null) reasons.push('RECORDS_ALLROUND_INVALID_TIMES')
         if (reasons.length) {
             issues.push({
                 id: String(record._id || record.id || ''), skater: name, gender: record.skater.gender || '',
                 date: record.date && Number.isFinite(new Date(record.date).getTime()) ?
                     new Date(record.date).toISOString().slice(0, 10) : '',
                 distance: record.distance, competition: record.competition.fullname || record.competition.name || '',
-                times: Array.isArray(record.times) ? Array.from(record.times) : null, reasons
+                times: Array.isArray(record.times) ? Array.from(record.times) : null,
+                totalTime: record.totalTime === undefined ? null : record.totalTime, reasons
             })
             continue
         }
@@ -108,7 +108,6 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
             best: new Map()
         })
         const skater = skaters.get(key)
-        const total = record.times.reduce((sum, time) => sum + time, 0)
         if (!skater.best.has(record.distance) || total < skater.best.get(record.distance)) skater.best.set(record.distance, total)
     }
     if (issues.length) {

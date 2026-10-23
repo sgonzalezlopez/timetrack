@@ -96,6 +96,16 @@ test('includes Spanish skaters with the ES code used by the skater country selec
     assert.equal(block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M').name, 'Spanish skater')
 })
 
+test('selects category winners by final total regardless of incomplete splits', async () => {
+    const { sheet } = await update([
+        record('MA2', 90000, { times: [null, 0, 90000], totalTime: 40000 }),
+        record('MA1', 10000, { totalTime: 42000 })
+    ])
+    const winner = block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M')
+    assert.equal(winner.category, 'MA2')
+    assert.equal(winner.time, 40000)
+})
+
 test('adds 100m only where there are eligible results, and expands bands without overwriting other blocks', async () => {
     const { sheet } = await update([
         record('LA2', 12000, { distance: 100 }), record('MYA', 13000, { distance: 100 }),

@@ -152,7 +152,7 @@ test('formats consistent hundredths for the original AR formulas, including trai
 })
 
 test('collects all invalid records and reasons, including blanks, nulls, sparse splits and non-finite totals', async () => {
-    const times = [[], [null], [0], [-1], [NaN], [Infinity], [, 40000], [Number.MAX_VALUE, Number.MAX_VALUE]]
+    const times = [[], [null], [0], [-1], [NaN], [Infinity], [undefined], [Number.MAX_VALUE, Number.MAX_VALUE]]
     const invalid = times.map((value, index) => ({
         ...marks(`skater-${index}`, 'M', [40000])[0],
         _id: `record-${index}`, date: '2026-10-23', times: value,
@@ -170,6 +170,23 @@ test('collects all invalid records and reasons, including blanks, nulls, sparse 
             assert.equal(issue.distance, 500)
             assert.equal(issue.competition, 'Test event')
             assert.ok(issue.reasons.includes('RECORDS_ALLROUND_INVALID_TIMES'))
+        })
+
+        test('Allround uses only final totals even with missing or zero splits, not the last split or split sum', async () => {
+            const records = [
+                ...marks('first', 'M', [20000]), ...marks('second', 'M', [10000]),
+                ...marks('woman', 'F', [43000])
+            ]
+            records[0].times = [0, null, 90000]
+            records[0].totalTime = 40000
+            records[1].times = []
+            records[1].totalTime = 42000
+            records[2].times = [null, 0, 43000]
+            const { sheet } = await update(records)
+            assert.equal(sheet.getCell('B2').value, 'first')
+            assert.equal(sheet.getCell('C2').value, '40,00')
+            assert.equal(sheet.getCell('C3').value, '42,00')
+            assert.equal(sheet.getCell('C6').value, '43,00')
         })
         assert.ok(error.issues[0].reasons.includes('RECORDS_ALLROUND_INVALID_GENDER'))
         assert.ok(error.issues[1].reasons.includes('RECORDS_ALLROUND_INVALID_NAME'))

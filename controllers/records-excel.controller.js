@@ -42,6 +42,7 @@ async function update(req, res, next, mode = 'records') {
                         `${index + 1}. ${issue.skater || '-'} | ${issue.date || '-'} | ${issue.distance} m | ` +
                         `${issue.competition || '-'} | ID: ${issue.id || '-'} | ` +
                         `${res.__('RECORDS_ALLROUND_REPORT_GENDER')}: ${issue.gender || '-'} | ` +
+                        `${res.__('COL_totalTime')}: ${JSON.stringify(issue.totalTime == null ? null : issue.totalTime)} | ` +
                         `${res.__('RECORDS_ALLROUND_REPORT_TIMES')}: ${JSON.stringify(issue.times)}\n` +
                         issue.reasons.map(reason => res.__(reason)).join('; ')).join('\n\n')
                 return res.status(400).send({ message, issues: err.issues })

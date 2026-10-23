@@ -72,6 +72,19 @@ test('replaces historical results, groups by race and gender and preserves other
     assert.equal(sheet.getCell('E2').value.result.toISOString(), '2026-10-23T00:00:00.000Z')
 })
 
+test('uses final totals for ranking and leaves incomplete splits empty', async () => {
+    const { updated } = await update(await fixture(), [
+        result({ times: [0, null, 90000], totalTime: 40000 }),
+        result({ times: [], totalTime: 42000 }),
+        result({ times: [null, 0, 43000] })
+    ])
+    const sheet = updated.getWorksheet('Clas. histórica')
+    for (const [row, total] of [[3, 40000], [4, 42000], [5, 43000]]) {
+        assert.equal(sheet.getCell(`F${row}`).value, total)
+        assert.ok(!sheet.getCell(`E${row}`).value)
+    }
+})
+
 test('recognizes reordered columns instead of using fixed column positions', async () => {
     const { updated } = await update(await fixture({ reordered: true }), [result()])
     const sheet = updated.getWorksheet('Clas. histórica')

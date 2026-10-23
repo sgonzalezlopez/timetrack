@@ -491,7 +491,7 @@
     "RECORDS_ALLROUND_INVALID_ID": "The skater has no identifier",
     "RECORDS_ALLROUND_INVALID_GENDER": "The skater's gender must be M or F",
     "RECORDS_ALLROUND_INVALID_NAME": "The skater has no name",
-    "RECORDS_ALLROUND_INVALID_TIMES": "Splits must be finite numbers greater than zero with a finite total; empty, null or missing splits are not allowed",
+    "RECORDS_ALLROUND_INVALID_TIMES": "The final total time must be a finite number greater than zero. Incomplete splits do not prevent updating when the final total is valid",
     "RECORDS_ALLROUND_REPORT_GENDER": "Gender",
     "RECORDS_ALLROUND_REPORT_TIMES": "Splits (milliseconds)",
     "RECORDS_ALLROUND_HELP": "Update Allround Histórico using each Spanish skater's best 500, 1000, 1500 and 3000m results, excluding training and screen filters. Men first, women below: complete skaters sorted by Total AR, then incomplete skaters by first available distance (500, 1000, 1500, 3000) and time. Retains Total AR formulas, extending them when needed without writing scores. Saves an exact backup beside the original first. Close Excel.",

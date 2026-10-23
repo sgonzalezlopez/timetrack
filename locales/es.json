@@ -329,7 +329,7 @@
   "RECORDS_ALLROUND_INVALID_ID": "El patinador no tiene identificador",
   "RECORDS_ALLROUND_INVALID_GENDER": "El sexo del patinador debe ser M o F",
   "RECORDS_ALLROUND_INVALID_NAME": "El patinador no tiene nombre",
-  "RECORDS_ALLROUND_INVALID_TIMES": "Los parciales deben ser números finitos mayores que cero, con un total finito; no se admiten tiempos vacíos, nulos o huecos",
+  "RECORDS_ALLROUND_INVALID_TIMES": "El tiempo total final debe ser un número finito mayor que cero. Los parciales incompletos no impiden actualizar si el total final es válido",
   "RECORDS_ALLROUND_REPORT_GENDER": "Sexo",
   "RECORDS_ALLROUND_REPORT_TIMES": "Parciales (milisegundos)",
   "RECORDS_ALLROUND_HELP": "Actualiza Allround Histórico con las mejores marcas de cada patinador español en 500, 1000, 1500 y 3000 m, sin entrenamientos ni filtros de pantalla. Hombres arriba, mujeres abajo: primero quienes completan las cuatro distancias, ordenados por Total AR; después por primera distancia disponible (500, 1000, 1500, 3000) y su tiempo. Se conservan las fórmulas de Total AR, extendiéndolas si hacen falta filas, sin escribir puntuaciones. Antes de guardar se crea una copia exacta junto al original. Cierra el Excel.",

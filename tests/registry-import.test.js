@@ -49,8 +49,9 @@ function harness(input, options = {}) {
         }
         return { value, lastErrorObject: { updatedExisting } }
     }
-    const skaters = options.skaters || [{ _id: 'skater-1', name: 'Ona', lastname: 'Rodriguez Cornejo', gender: 'F' }]
-    const categories = [{ name: 'LA2' }, { name: 'Other' }]
+    const skaters = options.skaters || [{ _id: 'skater-1', name: 'Ona', lastname: 'Rodriguez Cornejo', gender: 'F',
+        currentcategory: 'LA2', currentclub: 'club-1' }]
+    const categories = options.categories || [{ name: 'LA2' }, { name: 'Other' }]
     const club = { _id: 'club-1', name: options.unknownClub ? 'UNKNOWN' : 'RFEDH' }
     const models = {
         '../models/registry.model': {
@@ -87,10 +88,17 @@ function harness(input, options = {}) {
         },
         '../models/skater.model': {
             find: async () => skaters, exists: async () => true,
+            findOneAndUpdate: async (query, update) => {
+                const skater = skaters.find(s => s._id === query.$and[1]._id)
+                if (!skater) return null
+                Object.assign(skater, update.$set)
+                writes.push(['skater-category', update.$set])
+                return skater
+            },
             create: async values => { writes.push(['skater', values]); return { ...values, _id: 'created-skater' } }
         },
         '../models/club.model': {
-            find: async () => [club], exists: async () => true,
+            find: async () => options.clubs || [club], exists: async () => true,
             findOneAndUpdate: async () => { writes.push(['club']); return club }
         },
         '../models/category.model': { find: async () => categories },
@@ -108,7 +116,8 @@ function harness(input, options = {}) {
     })
     const req = {
         user: { id: 'user-1' }, params: options.registryScope ? {} : { id: 'event-1' },
-        body: { format: 'test', createSkaters: options.createSkaters ? 'true' : 'false' },
+        body: { format: 'test', createSkaters: options.createSkaters ? 'true' : 'false',
+            categorySource: options.categorySource, clubId: options.clubId },
         files: { file: { name: 'test.xlsx', size: 100, data: Buffer.from('test') } },
         app: { locals: {
             registryImportSeasonStartMonth: options.startMonth || 1,
@@ -119,7 +128,8 @@ function harness(input, options = {}) {
     const res = { __: s => s, status: n => { status = n; return res }, send: value => { result = value; return res } }
     const next = err => { throw err }
     return {
-        writes, req, tracks, competitions, records,
+        writes, req, tracks, competitions, records, skaters,
+        options: async () => { await exports.options(req, res, next); return { result, status } },
         preview: async () => { await exports.preview(req, res, next); return { result, status } },
         commit: async (token, choices) => {
             result = undefined; status = undefined
@@ -406,9 +416,165 @@ test('unknown categories require explicit valid selection before any writes', as
     assert.equal((await h.commit(preview.token, choices)).status, 400)
     assert.equal(h.writes.length, 0)
     choices[0].category = 'Other'
+    choices[0].updateSkaterCategory = false
     const { result } = await h.commit(preview.token, choices)
     assert.equal(result.imported[0].categorySubstituted, true)
     assert.equal(h.writes[0][1].category, 'Other')
+})
+
+test('category differences require an explicit profile decision in both import entry points', async () => {
+    for (const registryScope of [false, true]) {
+        const h = harness([registryScope ? eventRow({ category: 'Other' }) : { ...row(), category: 'Other' }], { registryScope })
+        const { result: preview } = await h.preview()
+        const choice = importChoice({ category: 'Other' })
+        const pending = await h.commit(preview.token, [choice])
+        assert.equal(pending.status, 400)
+        assert.equal(pending.result.message, 'IMPORT_CATEGORY_UPDATE_CHOOSE')
+        assert.equal(h.writes.length, 0)
+        choice.updateSkaterCategory = false
+        const { result } = await h.commit(preview.token, [choice])
+        assert.equal(result.imported.length, 1)
+        assert.equal(h.skaters[0].currentcategory, 'LA2')
+        assert.equal(h.writes.find(w => w[0] === 'registry')[1].category, 'Other')
+        assert.equal(result.updatedSkaters.length, 0)
+    }
+})
+
+test('explicit profile consent updates the existing skater and reports the change once', async () => {
+    const h = harness([{ ...row(), category: 'Other' },
+        { ...row(), category: 'Other', date: '2026-10-18', externalReference: 'next' }])
+    const { result: preview } = await h.preview()
+    const { result } = await h.commit(preview.token, preview.rows.map(() =>
+        importChoice({ updateSkaterCategory: true })))
+    assert.equal(result.imported.length, 2)
+    assert.equal(result.updatedSkaters.length, 1)
+    assert.equal(h.writes.filter(w => w[0] === 'skater-category').length, 1)
+    assert.equal(h.skaters[0].currentcategory, 'Other')
+    assert.equal(h.writes.find(w => w[0] === 'registry')[1].category, 'Other')
+})
+
+test('profile updates require update permission, but result-only imports do not', async () => {
+    const h = harness([{ ...row(), category: 'Other' }], { permissions: { skater: ['R'] } })
+    const { result: preview } = await h.preview()
+    assert.equal((await h.commit(preview.token, [importChoice({ updateSkaterCategory: true })])).status, 403)
+    assert.equal(h.writes.length, 0)
+    const { result } = await h.commit(preview.token, [importChoice({ updateSkaterCategory: false })])
+    assert.equal(result.imported.length, 1)
+    assert.equal(h.skaters[0].currentcategory, 'LA2')
+})
+
+test('database category policy uses the selected skater category, not the file or forged choices', async () => {
+    const h = harness([{ ...row(), category: 'Other' }], { categorySource: 'database' })
+    const { result: preview } = await h.preview()
+    assert.equal(preview.categorySource, 'database')
+    assert.equal(preview.rows[0].candidates[0].category, 'LA2')
+    const { result } = await h.commit(preview.token, [importChoice({ category: 'Other' })])
+    assert.equal(result.imported[0].category, 'LA2')
+    assert.equal(h.writes[0][1].category, 'LA2')
+    assert.equal(h.writes.some(w => w[0] === 'skater-category'), false)
+})
+
+test('missing database categories need manual selection and explicit profile consent', async () => {
+    const h = harness([row()], { categorySource: 'database' })
+    h.skaters[0].currentcategory = undefined
+    const { result: preview } = await h.preview()
+    assert.equal((await h.commit(preview.token, [importChoice({ category: undefined })])).status, 400)
+    assert.equal((await h.commit(preview.token, [importChoice()])).result.message, 'IMPORT_CATEGORY_UPDATE_CHOOSE')
+    const { result } = await h.commit(preview.token, [importChoice({ updateSkaterCategory: true })])
+    assert.equal(result.imported[0].category, 'LA2')
+    assert.equal(h.skaters[0].currentcategory, 'LA2')
+})
+
+test('ambiguous file categories are not silently matched to the first database category', async () => {
+    const h = harness([{ ...row(), category: 'la2' }], {
+        categories: [{ name: 'LA2' }, { name: 'La2' }, { name: 'Other' }]
+    })
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].category, null)
+    assert.equal((await h.commit(preview.token, [importChoice({ category: undefined })])).status, 400)
+    assert.equal(h.writes.length, 0)
+    const { result } = await h.commit(preview.token, [importChoice({ category: 'Other', updateSkaterCategory: false })])
+    assert.equal(result.imported[0].category, 'Other')
+})
+
+test('changed inherited categories require a new preview before any writes', async () => {
+    const h = harness([row()], { categorySource: 'database' })
+    const { result: preview } = await h.preview()
+    h.skaters[0].currentcategory = 'Other'
+    const { result, status } = await h.commit(preview.token, [importChoice()])
+    assert.equal(status, 409)
+    assert.equal(result.message, 'IMPORT_CATEGORY_CHANGED')
+    assert.equal(h.writes.length, 0)
+})
+
+test('different profile categories for the same skater are rejected before saving any results', async () => {
+    const h = harness([{ ...row(), category: 'Other' },
+        { ...row(), category: 'Third', externalReference: 'second', date: '2026-10-18' }], {
+        categories: [{ name: 'LA2' }, { name: 'Other' }, { name: 'Third' }]
+    })
+    const { result: preview } = await h.preview()
+    const choices = preview.rows.map(() => importChoice({ updateSkaterCategory: true }))
+    const { result, status } = await h.commit(preview.token, choices)
+    assert.equal(status, 400)
+    assert.equal(result.message, 'IMPORT_CATEGORY_UPDATE_CONFLICT')
+    assert.equal(h.writes.length, 0)
+    choices[1].updateSkaterCategory = false
+    const confirmed = await h.commit(preview.token, choices)
+    assert.equal(confirmed.result.imported.length, 2)
+    assert.equal(h.skaters[0].currentcategory, 'Other')
+})
+
+test('club options list existing accessible clubs and rejects arbitrary filter IDs', async () => {
+    const h = harness([row()], { clubs: [{ _id: 'z', name: 'Z club' }, { _id: 'a', name: 'A club' }] })
+    const { result } = await h.options()
+    assert.deepEqual(Array.from(result.clubs, c => c.id), ['a', 'z'])
+    h.req.body.clubId = 'foreign'
+    assert.equal((await h.preview()).status, 400)
+    assert.equal(h.writes.length, 0)
+})
+
+test('club filtering uses the database profile, excludes new skaters and ignores the file club', async () => {
+    for (const registryScope of [false, true]) {
+        const makeRow = registryScope ? eventRow : overrides => ({ ...row(), ...overrides })
+        const h = harness([
+            makeRow({ clubName: 'OTHER', externalReference: 'one' }),
+            makeRow({ skaterName: 'Someone Else', clubName: 'RFEDH', externalReference: 'two' }),
+            makeRow({ skaterName: 'New Skater', clubName: 'RFEDH', externalReference: 'three' })
+        ], { registryScope, clubId: 'club-1', createSkaters: true, skaters: [
+            { _id: 'skater-1', name: 'Ona', lastname: 'Rodriguez Cornejo', gender: 'F', currentclub: 'club-1', currentcategory: 'LA2' },
+            { _id: 'skater-2', name: 'Someone', lastname: 'Else', gender: 'F', currentclub: 'club-2', currentcategory: 'LA2' }
+        ] })
+        const { result: preview } = await h.preview()
+        assert.equal(preview.rows[0].issue, null)
+        assert.equal(preview.rows[1].issue, 'IMPORT_CLUB_EXCLUDED')
+        assert.equal(preview.rows[2].issue, 'IMPORT_CLUB_EXCLUDED')
+        const { result } = await h.commit(preview.token, preview.rows.map(() => importChoice()))
+        assert.equal(result.imported.length, 1)
+        assert.equal(result.skipped.length, 2)
+        assert.equal(result.createdSkaters.length, 0)
+    }
+})
+
+test('ambiguous skater choices are restricted to members of the selected database club', async () => {
+    const h = harness([row()], { clubId: 'club-1', skaters: [
+        { _id: 'inside', name: 'Ona', lastname: 'Rodriguez Cornejo', gender: 'F', currentclub: 'club-1', currentcategory: 'LA2' },
+        { _id: 'outside', name: 'Ona', lastname: 'Rodriguez Cornejo', gender: 'F', currentclub: 'club-2', currentcategory: 'LA2' }
+    ] })
+    const { result: preview } = await h.preview()
+    assert.deepEqual(Array.from(preview.rows[0].candidates, c => c.id), ['inside'])
+    assert.equal((await h.commit(preview.token, [importChoice({ skaterId: 'outside' })])).status, 400)
+    assert.equal(h.writes.length, 0)
+    assert.equal((await h.commit(preview.token, [importChoice({ skaterId: 'inside' })])).result.imported.length, 1)
+})
+
+test('club membership is revalidated at confirmation before saving anything', async () => {
+    const h = harness([row()], { clubId: 'club-1' })
+    const { result: preview } = await h.preview()
+    h.skaters[0].currentclub = 'club-2'
+    const { result, status } = await h.commit(preview.token, [importChoice()])
+    assert.equal(status, 409)
+    assert.equal(result.message, 'IMPORT_CLUB_CHANGED')
+    assert.equal(h.writes.length, 0)
 })
 
 test('ambiguous names require selection; unknown club uses UNKNOWN; new skater is reused', async () => {

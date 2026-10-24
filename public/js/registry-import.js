@@ -5,7 +5,6 @@
     let busy = false;
     let competitionId = null;
     let importBase = null;
-    const categorySelectors = new Map();
     const trackSelectors = new Map();
     const duplicateSelectors = new Map();
     const rowSelectors = [];
@@ -21,6 +20,13 @@
     function setBusy(value) {
         busy = value;
         $('#RegistryImportForm :input, #RegistryImportCommit, #RegistryImportDuplicates select').prop('disabled', value);
+        $('#RegistryImportRows :input, #RegistryImportTracks select').prop('disabled', value);
+        $('#RegistryImportUpdateCategories').prop('disabled', value);
+        $('#RegistryImportClub').prop('disabled', value || !$('#RegistryImportClubOnly').prop('checked'));
+        if (!value) for (const controls of rowSelectors) {
+            if (controls.skaterLocked) controls.skaters.prop('disabled', true);
+            if (controls.categoryLocked) controls.category.prop('disabled', true);
+        }
         $('#RegistryImportModal [data-bs-dismiss]').prop('disabled', value);
     }
     function request(url, data, multipart) {
@@ -78,12 +84,11 @@
     }
     function review(result) {
         preview = result;
-        categorySelectors.clear();
         trackSelectors.clear();
         duplicateSelectors.clear();
         $('#RegistryImportDuplicates').prop('hidden', true);
         rowSelectors.length = 0;
-        $('#RegistryImportCategories, #RegistryImportRows, #RegistryImportTracks').empty();
+        $('#RegistryImportRows, #RegistryImportTracks').empty();
         for (const row of result.rows) {
             if (row.destination && row.destination.needsTrack && !row.issue && !trackSelectors.has(row.trackName || '')) {
                 const control = select([['', text('IMPORT_SELECT')],
@@ -91,12 +96,6 @@
                 trackSelectors.set(row.trackName || '', control);
                 $('#RegistryImportTracks').append($('<label class="d-block mb-2">')
                     .text(`${text('IMPORT_TRACK')}${row.trackName ? ` (${row.trackName})` : ''}: `).append(control));
-            }
-            if (!row.category && !row.issue && !categorySelectors.has(row.inputCategory)) {
-                const control = select([['', text('IMPORT_SELECT')], ...result.categories.map(c => [c, c])], row.inputCategory);
-                categorySelectors.set(row.inputCategory, control);
-                $('#RegistryImportCategories').append(
-                    $('<label class="d-block mb-2">').text(`${row.inputCategory || '—'}: `).append(control));
             }
             const tr = $('<tr>');
             tr.append($('<td>').text(row.sourceLocation || row.index + 2), $('<td>').text(`${row.skaterName} (${row.gender})`));
@@ -155,14 +154,35 @@
                 ...row.candidates.map(c => [c.id, `${c.name} | ${c.birthDate ? c.birthDate.slice(0, 10) : '—'} | ${c.category || '—'}`]),
                 ...(result.createSkaters ? [['new', text('IMPORT_NEW')]] : [])], row.skaterName);
             if (row.automaticSkater) skaters.val(row.automaticSkater).prop('disabled', true);
-            else if (!row.candidates.length && result.createSkaters) skaters.val('new');
+            else if (!row.issue && !row.candidates.length && result.createSkaters) skaters.val('new');
+            const category = select([['', text('IMPORT_SELECT')], ...result.categories.map(c => [c, c])], text('COL_category'));
+            const currentCategory = $('<small class="d-block">');
+            const controls = { action, skaters, date, distance, category, skaterLocked: !!row.automaticSkater };
+            const selectedSkater = () => row.candidates.find(c => c.id === skaters.val());
+            const updateDifference = () => {
+                const skater = selectedSkater();
+                currentCategory.text(skater ? `${text('IMPORT_CATEGORY_CURRENT')}: ${skater.category || '—'}` : '');
+            };
+            const updateCategorySource = () => {
+                const skater = selectedSkater();
+                const inherited = result.categorySource === 'database' && skaters.val() !== 'new' ?
+                    skater && skater.category : row.category;
+                controls.categoryLocked = result.categories.includes(inherited);
+                category.val(controls.categoryLocked ? inherited : '').prop('disabled', controls.categoryLocked);
+                updateDifference();
+            };
+            skaters.on('change', updateCategorySource);
+            category.on('change', updateDifference);
+            updateCategorySource();
+            tr.append($('<td>').append(
+                $('<small class="d-block">').text(`${row.inputCategory || '—'}`), currentCategory, category));
             const messages = [...row.warnings];
             if (row.issue) messages.push(row.issue);
             if (row.duplicate) messages.push('IMPORT_DUPLICATE');
             if (row.competitionMismatch) messages.push('IMPORT_COMPETITION_MISMATCH');
             tr.append($('<td>').append(action, skaters),
                 $('<td>').text(messages.map(text).join(' · ')));
-            rowSelectors.push({ action, skaters, date, distance });
+            rowSelectors.push(controls);
             $('#RegistryImportRows').append(tr);
         }
         $('#RegistryImportReview').prop('hidden', false);
@@ -177,12 +197,19 @@
         duplicateSelectors.clear();
         $('#RegistryImportDuplicates').prop('hidden', true);
         $('#RegistryImportForm')[0].reset();
+        $('#RegistryImportUpdateCategories').val('');
         $('#RegistryImportReview, #RegistryImportReport, #RegistryImportError').prop('hidden', true);
         $('#RegistryImportFormat').empty();
+        $('#RegistryImportClub').empty();
         modal().show();
         setBusy(true);
         try {
-            const formats = await $.getJSON(registryScope ? '/api/registry/import-formats' : '/api/competition/import-formats');
+            const base = registryScope ? '/api/registry' : '/api/competition';
+            const [formats, options] = await Promise.all([
+                $.getJSON(`${base}/import-formats`), $.getJSON(`${base}/import-options`)
+            ]);
+            $('#RegistryImportClub').append($('<option>').val('').text(text('IMPORT_SELECT')));
+            for (const club of options.clubs) $('#RegistryImportClub').append($('<option>').val(club.id).text(club.name));
             for (const format of formats) $('#RegistryImportFormat').append(
                 $('<option>').val(format.id).text(format.label).attr('data-extensions', format.extensions.join(',')));
             $('#RegistryImportFormat').trigger('change');
@@ -193,11 +220,22 @@
     $(document).on('change', '#RegistryImportFormat', function () {
         $('#RegistryImportFile').attr('accept', $(this).find(':selected').attr('data-extensions') || '');
     });
+    $(document).on('change', '#RegistryImportCategorySource, #RegistryImportClubOnly, #RegistryImportClub, #RegistryImportCreate, #RegistryImportFormat, #RegistryImportFile', function () {
+        if (busy) return;
+        preview = null;
+        $('#RegistryImportReview, #RegistryImportReport, #RegistryImportError').prop('hidden', true);
+        $('#RegistryImportClub').prop('disabled', !$('#RegistryImportClubOnly').prop('checked'));
+    });
     $(document).on('submit', '#RegistryImportForm', async function (event) {
         event.preventDefault();
         if (busy) return;
         const data = new FormData(this);
         data.set('createSkaters', String($('#RegistryImportCreate').prop('checked')));
+        if ($('#RegistryImportClubOnly').prop('checked') && !$('#RegistryImportClub').val()) {
+            showError(text('IMPORT_CLUB_CHOOSE'));
+            return;
+        }
+        data.set('clubId', $('#RegistryImportClubOnly').prop('checked') ? $('#RegistryImportClub').val() : '');
         $('#RegistryImportError, #RegistryImportReview, #RegistryImportReport').prop('hidden', true);
         setBusy(true);
         try { review(await request(`${importBase}/import/preview`, data, true)); }
@@ -209,7 +247,9 @@
         $('#RegistryImportError').prop('hidden', true);
         const choices = preview.rows.map((row, i) => ({
             action: rowSelectors[i].action.val(), skaterId: rowSelectors[i].skaters.val(),
-            category: row.category || categorySelectors.get(row.inputCategory) && categorySelectors.get(row.inputCategory).val(),
+            category: rowSelectors[i].category.val(),
+            updateSkaterCategory: $('#RegistryImportUpdateCategories').val() === 'yes' ? true :
+                $('#RegistryImportUpdateCategories').val() === 'no' ? false : undefined,
             date: rowSelectors[i].date && rowSelectors[i].date.val(),
             distance: rowSelectors[i].distance && rowSelectors[i].distance.val(),
             trackId: trackSelectors.get(row.trackName || '') && trackSelectors.get(row.trackName || '').val(),
@@ -232,12 +272,21 @@
             const row = preview.rows[incomplete];
             showError(`${text('IMPORT_CHOOSE')} (${row.sourceLocation || row.index + 2}: ${row.skaterName})`);
             const control = !choices[incomplete].category ?
-                categorySelectors.get(row.inputCategory) : rowSelectors[incomplete].skaters;
+                rowSelectors[incomplete].category : rowSelectors[incomplete].skaters;
             control.attr('aria-invalid', 'true');
             return;
         }
         if (!choices.some(c => c.action !== 'skip')) {
             showError(text('IMPORT_NOTHING_SELECTED'));
+            return;
+        }
+        const undecided = choices.findIndex((c, i) => {
+            const skater = preview.rows[i].candidates.find(s => s.id === c.skaterId);
+            return c.action !== 'skip' && skater && skater.category !== c.category && c.updateSkaterCategory === undefined;
+        });
+        if (undecided !== -1) {
+            showError(text('IMPORT_CATEGORY_UPDATE_CHOOSE'));
+            $('#RegistryImportUpdateCategories').attr('aria-invalid', 'true');
             return;
         }
         if (choices.some((c, i) => c.action !== 'skip' && !preview.rows[i].issue &&
@@ -253,6 +302,7 @@
             for (const [key, label] of [
                 ['imported', 'IMPORT_IMPORTED'], ['skipped', 'IMPORT_OMITTED'],
                 ['failed', 'IMPORT_FAILED'], ['createdSkaters', 'IMPORT_CREATED'],
+                ...(report.updatedSkaters ? [['updatedSkaters', 'IMPORT_UPDATED_SKATERS']] : []),
                 ...(report.createdEvents ? [['createdEvents', 'IMPORT_CREATED_EVENTS'], ['createdTracks', 'IMPORT_CREATED_TRACKS']] : [])
             ]) {
                 const details = $('<details>').append($('<summary>').text(`${text(label)}: ${report[key].length}`));

@@ -8,6 +8,7 @@ const authorization = require(path.join(__corePath, '/middlewares/authorization'
 
 router.get("/", authorization.checkPermision('competition', 'R'), controller.getAll);
 router.get("/import-formats", authorization.checkPermision('registry', 'C'), importer.formats);
+router.get("/import-options", authorization.checkPermision('registry', 'C'), importer.options);
 router.post("/:id/import/preview", authorization.checkPermision('competition', 'R'), authorization.checkPermision('registry', 'C'), importer.preview);
 router.post("/:id/import/commit", authorization.checkPermision('competition', 'R'), authorization.checkPermision('registry', 'C'), importer.commit);
 router.get("/:id/registries", authorization.checkPermision('competition', 'R'), controller.getRegistries);

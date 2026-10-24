@@ -166,15 +166,38 @@ a la aplicacion consumidora, no a sus copias de los submodulos.
 El boton Importar del evento permite revisar el fichero antes de guardar:
 
 - `GET /api/competition/import-formats`: formatos disponibles.
-- `POST /api/competition/:id/import/preview`: multipart (`file`, `format`, `createSkaters`).
+- `GET /api/competition/import-options`: clubes existentes accesibles para el filtro opcional.
+- `POST /api/competition/:id/import/preview`: multipart (`file`, `format`, `createSkaters`,
+  `categorySource` (`file` por defecto o `database`), `clubId` opcional).
 - `POST /api/competition/:id/import/commit`: JSON (`token`, `choices`), una seleccion por fila:
-  `action` (`skip`, `import`, `replace`), `skaterId` (candidato o `new`) y `category`.
+  `action` (`skip`, `import`, `replace`), `skaterId` (candidato o `new`), `category`
+  y `updateSkaterCategory` (booleano cuando la categoria difiere de la ficha).
 
 Se requiere lectura del evento y creacion de registros; crear patinadores o el club UNKNOWN
 requiere el permiso de creacion correspondiente. Sobrescribir requiere actualizar registros.
 Los nombres se normalizan sin tildes, puntuacion ni orden de palabras, y se compara el sexo.
 Las coincidencias aproximadas y multiples requieren seleccion manual.
-Las categorias desconocidas se eligen entre las existentes; clubes desconocidos usan UNKNOWN.
+El selector general decide si la categoria del registro procede del fichero o de
+la ficha del patinador existente. Las categorias ausentes, desconocidas o ambiguas
+se eligen manualmente por fila entre las existentes. Para patinadores nuevos se usa
+la categoria del fichero o la seleccion manual, tambien en modo `database`.
+Si la categoria resuelta difiere de la ficha, se exige responder expresamente si se
+actualizan tambien las fichas mediante una unica decision general para toda la
+importacion; no se pregunta por cada fila ni hay respuesta preseleccionada.
+La interfaz envia esa misma decision en `updateSkaterCategory` de todas las filas.
+Elegir no solo cambia
+el registro. Elegir si requiere permiso U de patinador, comprobado antes de escribir.
+No se admiten distintas categorias para actualizar la ficha del mismo patinador
+en una importacion. Si la categoria heredada de la ficha cambia tras la revision,
+se solicita una nueva revision. El informe incluye `updatedSkaters`, con las fichas
+actualizadas, incluso si despues falla el guardado de su registro.
+Los clubes desconocidos del fichero usan UNKNOWN.
+El filtro opcional por `clubId` usa exclusivamente `currentclub` de la ficha,
+no el club del fichero. Solo ofrece candidatos pertenecientes al club seleccionado
+y comprueba de nuevo la pertenencia al confirmar. Las filas sin un patinador
+identificado de ese club, incluidos los nuevos, se omiten con motivo explicito.
+El filtro no cambia el club que se guarda en el registro (que procede del fichero).
+Estas opciones se fijan al leer: cambiarlas en el formulario exige otra revision.
 Las filas de equipos o estados distintos de OK quedan omitidas. Un estado ausente es valido.
 Los duplicados con fuente y referencia requieren seleccion expresa para sobrescribir;
 los de otro evento no se sobrescriben.
@@ -208,7 +231,8 @@ El boton malva Importar, a la derecha de Nuevo, reutiliza la revision y las regl
 patinadores, categorias y duplicados. No usa el evento de un formulario ni IDs externos:
 
 - `GET /api/registry/import-formats`: formatos registrados en la aplicacion.
-- `POST /api/registry/import/preview`: multipart (`file`, `format`, `createSkaters`).
+- `GET /api/registry/import-options`: mismos clubes y filtro que en Eventos.
+- `POST /api/registry/import/preview`: mismos campos y opciones de categoria y club que en Eventos.
 - `POST /api/registry/import/commit`: JSON (`token`, `choices`); las selecciones pueden
   incluir `trackId` cuando la pista falta o su nombre coincide con varias pistas.
 

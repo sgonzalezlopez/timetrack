@@ -5,9 +5,11 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ category = 'LA2', action = 'import', serverError = false, registryScope = false,
-    needsTrack = false, trackId = '', duplicateReview = false, duplicateAction = '' } = {}) {
+    currentCategory = 'LA2', updateSkaterCategory = '',
+    needsTrack = false, trackId = '', duplicateReview = false, duplicateAction = '', renderPreview } = {}) {
     const handlers = new Map(), elements = new Map()
-    let requests = 0
+    let requests = 0, created = 0
+    const testState = {}
     function element(key) {
         if (!elements.has(key)) {
             const props = {}
@@ -18,28 +20,38 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
             const e = {
                 0: node, props,
                 text(value) { if (value === undefined) return props.text; props.text = value; return e },
-                prop(name, value) { props[name] = value; return e },
+                prop(name, value) { if (value === undefined) return props[name]; props[name] = value; return e },
                 attr(name, value) { props[name] = value; return e },
-                val() { return key === 'action' ? action : key === 'skater' ? 'skater-1' : '' },
+                val(value) { if (value !== undefined) { props.value = value; return e }
+                    if (Object.hasOwn(props, 'value')) return props.value
+                    return key === 'action' ? action : key === 'skater' ? 'skater-1' :
+                    key === 'category' ? category : key === '#RegistryImportUpdateCategories' ? updateSkaterCategory : '' },
                 append() { return e }, empty() { return e },
-                trigger(event) { props.triggered = event; return e }
+                on(event, callback) { props[event] = callback; return e },
+                trigger(event) { props.triggered = event; if (props[event]) props[event](); return e }
             }
             elements.set(key, e)
         }
         return elements.get(key)
     }
     const document = {}
-    const $ = key => key === document ? { on: (_event, selector, handler) => handlers.set(selector, handler) } : element(key)
+    const $ = key => key === document ? { on: (_event, selector, handler) => handlers.set(selector, handler) } :
+        element(typeof key === 'string' && key.startsWith('<') ? `${key}:${created++}` : key)
     let lastRequest
     $.ajax = async options => {
         lastRequest = options
         requests++
         if (serverError) throw { responseJSON: { message: 'Server validation error' } }
+        if (options.url.endsWith('/preview')) return renderPreview || reviewData()
         return { imported: [{ row: 2, name: 'Daniela', category: 'LA2' }], skipped: [], failed: [], createdSkaters: [],
             ...(registryScope ? { createdEvents: [{ row: 2, name: 'Thialf', season: '2023-2024' }], createdTracks: [] } : {}) }
     }
+    class FormData {
+        constructor() { this.values = { categorySource: element('#RegistryImportCategorySource').val() || 'file' } }
+        set(key, value) { this.values[key] = value }
+    }
     const context = {
-        $, document, registryImportText: {}, bootstrap: {}, window: { confirm: () => true }
+        $, document, registryImportText: {}, bootstrap: {}, window: { confirm: () => true }, testState, FormData
     }
     const source = fs.readFileSync(path.join(__dirname, '../public/js/registry-import.js'), 'utf8')
     vm.runInNewContext(source.replace(/\}\(\)\);\s*$/, `
@@ -48,6 +60,7 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
         preview = {token: 'token', rows: [{
             index: 0, skaterName: 'Daniela', sourceLocation: 'PDF 1 / 163',
             inputCategory: 'unknown', category: ${JSON.stringify(category)},
+            candidates: [{ id: 'skater-1', category: ${JSON.stringify(currentCategory)} }],
             ${needsTrack ? 'destination: {needsTrack: true},' : ''}
         }]};
         ${needsTrack ? `trackSelectors.set('', {val: () => ${JSON.stringify(trackId)}});` : ''}
@@ -55,10 +68,15 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
             action: {val: () => ${JSON.stringify(duplicateAction)}},
             existing: {val: () => 'existing'}, token: 'review-token'
         });` : ''}
-        categorySelectors.set('unknown', $('category'));
-        rowSelectors.push({ action: $('action'), skaters: $('skater') });
+        rowSelectors.push({ action: $('action'), skaters: $('skater'), category: $('category') });
+        ${renderPreview ? `review(${JSON.stringify(renderPreview)});` : ''}
+        testState.controls = rowSelectors;
     }());`), context)
     return { elements, requests: () => requests, lastRequest: () => lastRequest,
+        controls: () => testState.controls,
+        control: element,
+        submit: () => handlers.get('#RegistryImportForm').call({}, { preventDefault() {} }),
+        changeOptions: () => handlers.get([...handlers.keys()].find(key => key.startsWith('#RegistryImportCategorySource')))(),
         commit: () => handlers.get('#RegistryImportCommit')() }
 }
 
@@ -129,4 +147,140 @@ test('duplicate comparisons require an explicit decision and send its review tok
     assert.equal(choice.duplicateReviewToken, 'review-token')
     assert.equal(choice.duplicateAction, 'replace')
     assert.equal(choice.duplicateId, 'existing')
+})
+
+test('category differences block confirmation until the profile update question is answered', async () => {
+    const pending = harness({ category: 'Other' })
+    await pending.commit()
+    assert.equal(pending.requests(), 0)
+    assert.match(pending.elements.get('#RegistryImportError').props.text, /IMPORT_CATEGORY_UPDATE_CHOOSE/)
+    assert.equal(pending.elements.get('#RegistryImportUpdateCategories').props['aria-invalid'], 'true')
+    for (const [answer, expected] of [['yes', true], ['no', false]]) {
+        const ready = harness({ category: 'Other', updateSkaterCategory: answer })
+        await ready.commit()
+        assert.equal(ready.requests(), 1)
+        assert.equal(JSON.parse(ready.lastRequest().data).choices[0].updateSkaterCategory, expected)
+    }
+})
+
+const reviewData = overrides => ({
+    token: 'token', createSkaters: false, categories: ['LA2', 'Other'], tracks: [], categorySource: 'file',
+    rows: [{
+        index: 0, skaterName: 'Ona', gender: 'F', race: '500', warnings: [], issue: null,
+        inputCategory: 'Other', category: 'Other', automaticSkater: 'skater-1',
+        candidates: [{ id: 'skater-1', name: 'Ona', category: 'LA2' }]
+    }], ...overrides
+})
+
+test('review renders file categories and a mandatory, initially unanswered profile update question', async () => {
+    const h = harness({ renderPreview: reviewData() })
+    const controls = h.controls()[0]
+    assert.equal(controls.category.val(), 'Other')
+    assert.equal(controls.category.props.disabled, true)
+    assert.equal(h.control('#RegistryImportUpdateCategories').val(), '')
+    await h.commit()
+    assert.equal(h.requests(), 0)
+    h.control('#RegistryImportUpdateCategories').val('no')
+    await h.commit()
+    assert.equal(h.requests(), 1)
+    const choice = JSON.parse(h.lastRequest().data).choices[0]
+    assert.equal(choice.category, 'Other')
+    assert.equal(choice.updateSkaterCategory, false)
+})
+
+test('review inherits the selected database category and does not require a profile change decision', async () => {
+    const h = harness({ renderPreview: reviewData({ categorySource: 'database' }) })
+    assert.equal(h.controls()[0].category.val(), 'LA2')
+    await h.commit()
+    assert.equal(h.requests(), 1)
+    assert.equal(JSON.parse(h.lastRequest().data).choices[0].category, 'LA2')
+})
+
+test('unresolved file categories require a manual category and then a separate profile decision', async () => {
+    const data = reviewData()
+    data.rows[0].category = null
+    const h = harness({ renderPreview: data })
+    const controls = h.controls()[0]
+    assert.equal(controls.category.val(), '')
+    assert.equal(controls.category.props.disabled, false)
+    await h.commit()
+    assert.equal(h.requests(), 0)
+    controls.category.val('Other').trigger('change')
+    await h.commit()
+    assert.equal(h.requests(), 0)
+    assert.match(h.elements.get('#RegistryImportError').props.text, /IMPORT_CATEGORY_UPDATE_CHOOSE/)
+    h.control('#RegistryImportUpdateCategories').val('yes')
+    await h.commit()
+    assert.equal(h.requests(), 1)
+    assert.equal(JSON.parse(h.lastRequest().data).choices[0].updateSkaterCategory, true)
+})
+
+test('changing a manually matched skater refreshes inherited categories but preserves the general profile decision', () => {
+    const data = reviewData({ categorySource: 'database' })
+    data.rows[0].automaticSkater = null
+    data.rows[0].candidates.push({ id: 'skater-2', name: 'Other Ona', category: 'Other' })
+    const h = harness({ renderPreview: data })
+    const controls = h.controls()[0]
+    assert.equal(controls.category.val(), '')
+    controls.skaters.val('skater-1').trigger('change')
+    assert.equal(controls.category.val(), 'LA2')
+    h.control('#RegistryImportUpdateCategories').val('yes')
+    controls.skaters.val('skater-2').trigger('change')
+    assert.equal(controls.category.val(), 'Other')
+    assert.equal(h.control('#RegistryImportUpdateCategories').val(), 'yes')
+})
+
+test('one general decision applies to all differing skaters in both import entry points', async () => {
+    for (const registryScope of [false, true]) {
+        for (const [answer, expected] of [['yes', true], ['no', false]]) {
+            const data = reviewData()
+            data.rows.push({ ...data.rows[0], index: 1, skaterName: 'Second skater',
+                automaticSkater: 'skater-2', candidates: [{ id: 'skater-2', name: 'Second skater', category: 'LA2' }] })
+            const h = harness({ registryScope, renderPreview: data })
+            await h.commit()
+            assert.equal(h.requests(), 0)
+            h.control('#RegistryImportUpdateCategories').val(answer)
+            await h.commit()
+            assert.equal(h.requests(), 1)
+            const choices = JSON.parse(h.lastRequest().data).choices
+            assert.equal(choices.length, 2)
+            assert.equal(choices[0].updateSkaterCategory, expected)
+            assert.equal(choices[1].updateSkaterCategory, expected)
+            assert.equal(h.controls().some(c => c.updateCategory), false)
+        }
+    }
+})
+
+test('club filtering requires a selection and sends the selected database club in both import forms', async () => {
+    for (const registryScope of [false, true]) {
+        const h = harness({ registryScope })
+        h.control('#RegistryImportClubOnly').prop('checked', true)
+        await h.submit()
+        assert.equal(h.requests(), 0)
+        assert.equal(h.elements.get('#RegistryImportError').props.text, 'IMPORT_CLUB_CHOOSE')
+        h.control('#RegistryImportClub').val('club-1')
+        h.control('#RegistryImportCategorySource').val('database')
+        await h.submit()
+        assert.equal(h.requests(), 1)
+        assert.equal(h.lastRequest().url, registryScope ? '/api/registry/import/preview' : '/api/competition/event-1/import/preview')
+        assert.equal(h.lastRequest().data.values.clubId, 'club-1')
+        assert.equal(h.lastRequest().data.values.categorySource, 'database')
+    }
+})
+
+test('unchecked club filtering sends no club restriction and option changes invalidate the old review', async () => {
+    const h = harness()
+    h.control('#RegistryImportClub').val('club-1')
+    h.changeOptions()
+    assert.equal(h.control('#RegistryImportClub').props.disabled, true)
+    await h.commit()
+    assert.equal(h.requests(), 0)
+    await h.submit()
+    assert.equal(h.lastRequest().data.values.clubId, '')
+    assert.equal(h.lastRequest().data.values.categorySource, 'file')
+    h.control('#RegistryImportClubOnly').prop('checked', true)
+    h.changeOptions()
+    assert.equal(h.control('#RegistryImportClub').props.disabled, false)
+    await h.commit()
+    assert.equal(h.requests(), 1)
 })

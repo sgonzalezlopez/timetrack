@@ -42,6 +42,13 @@ exports.formats = (req, res) => {
     res.send(formats(req).map(({ id, label, extensions }) => ({ id, label, extensions })))
 }
 
+exports.options = async (req, res, next) => {
+    try {
+        const clubs = await Club.find(filter.getFilter('Club', {}, req.user))
+        res.send({ clubs: clubs.map(c => ({ id: String(c._id), name: c.name })).sort((a, b) => a.name.localeCompare(b.name)) })
+    } catch (err) { next(err) }
+}
+
 exports.preview = async (req, res, next) => {
     try {
         for (const [token, entry] of previews) if (entry.expires < Date.now() && !entry.busy) previews.delete(token)
@@ -78,6 +85,10 @@ exports.preview = async (req, res, next) => {
         ])
         const createSkaters = req.body.createSkaters === 'true' && skaterPermissions.includes('C')
         if (req.body.createSkaters === 'true' && !createSkaters) return error(res, 403, 'ERR005')
+        const categorySource = req.body.categorySource || 'file'
+        const selectedClub = req.body.clubId || null
+        if (!['file', 'database'].includes(categorySource) ||
+            selectedClub && !clubs.some(c => String(c._id) === selectedClub)) return error(res, 400, 'IMPORT_INVALID_CHOICES')
         const visibleRegistryFilter = filter.getFilter('Registry', {}, req.user)
         const prepared = []
         for (let i = 0; i < rows.length; i++) {
@@ -88,10 +99,13 @@ exports.preview = async (req, res, next) => {
                 destinationFor(row, null, tracks, competitions, seasonStartMonth) : null
             if (destination && destination.issue && destination.issue !== 'IMPORT_CHOOSE_TRACK') issue = destination.issue
             const match = issue ? { candidates: [], automatic: false } : candidatesFor(row, skaters)
+            const candidates = selectedClub ? match.candidates.filter(s => String(s.currentclub) === selectedClub) : match.candidates
+            if (!issue && selectedClub && !candidates.length) issue = 'IMPORT_CLUB_EXCLUDED'
             const club = clubs.find(c => row.clubName && normalize(c.name) === normalize(row.clubName)) ||
                 clubs.find(c => c.name === 'UNKNOWN')
             const knownClub = clubs.some(c => row.clubName && normalize(c.name) === normalize(row.clubName))
-            const category = categories.find(c => row.category && c.name && normalize(c.name) === normalize(row.category))
+            const matchingCategories = categories.filter(c => row.category && c.name && normalize(c.name) === normalize(row.category))
+            const category = matchingCategories.length === 1 ? matchingCategories[0] : null
             const duplicates = row.source && row.externalReference ?
                 await Registry.find({ source: row.source, externalReference: row.externalReference }) : []
             const visibleDuplicates = row.source && row.externalReference ?
@@ -100,11 +114,11 @@ exports.preview = async (req, res, next) => {
                 visibleDuplicates.some(d => String(d._id) === String(duplicates[0]._id)) &&
                 String(duplicates[0].competition) === (competition ? String(competition._id) : destination && destination.competitionId)
             prepared.push({
-                index: i, row, issue, destination, candidates: match.candidates.map(s => ({
+                index: i, row, issue, destination, candidates: candidates.map(s => ({
                     id: String(s._id), name: `${s.name} ${s.lastname || ''}`.trim(),
                     birthDate: s.birthDate, category: s.currentcategory
                 })),
-                automaticSkater: match.automatic ? String(match.candidates[0]._id) : null,
+                automaticSkater: match.automatic && candidates.length === 1 ? String(candidates[0]._id) : null,
                 clubId: club ? String(club._id) : null, unknownClub: !knownClub,
                 category: category ? category.name : null, duplicate: duplicates.length > 0,
                 duplicateId: canReplace ? String(duplicates[0]._id) : null,
@@ -118,14 +132,14 @@ exports.preview = async (req, res, next) => {
         previews.set(token, {
             owner: owner(req), competition: competition ? String(competition._id) : null,
             competitionName: competition ? competition.name : null,
-            seasonStartMonth, rows: prepared, createSkaters,
+            seasonStartMonth, rows: prepared, createSkaters, categorySource, selectedClub,
             duplicateReviews: new Map(),
             skaterNames: new Map(skaters.map(s => [String(s._id), `${s.name} ${s.lastname || ''}`.trim()])),
             clubNames: new Map(clubs.map(c => [String(c._id), c.name])),
             canCreateClub: clubPermissions.includes('C'), expires: Date.now() + lifetime, busy: false
         })
         res.send({
-            token, createSkaters, seasonStartMonth,
+            token, createSkaters, seasonStartMonth, categorySource, selectedClub,
             tracks: tracks.map(t => ({ id: String(t._id), name: t.name, location: t.location })),
             categories: categories.map(c => c.name).sort(),
             rows: prepared.map(({ row, ...p }) => ({
@@ -154,6 +168,11 @@ exports.commit = async (req, res, next) => {
             Competition.find(filter.getFilter('Competition', {}, req.user))
         ])
         const categoryNames = new Set((await Category.find()).map(c => c.name))
+        const skaters = await Skater.find(filter.getFilter('Skater', {}, req.user))
+        const currentSkaters = new Map(skaters.map(s => [String(s._id), s]))
+        if (entry.selectedClub && !await Club.exists({
+            $and: [filter.getFilter('Club', {}, req.user), { _id: entry.selectedClub }]
+        })) return error(res, 403, 'IMPORT_ACCESS_CHANGED')
         const plans = []
         for (let i = 0; i < entry.rows.length; i++) {
             const p = entry.rows[i], choice = choices[i]
@@ -171,13 +190,28 @@ exports.commit = async (req, res, next) => {
             const skaterId = p.automaticSkater || choice.skaterId
             if (skaterId !== 'new' && !p.candidates.some(c => c.id === skaterId)) return error(res, 400, 'IMPORT_INVALID_CHOICES')
             if (skaterId === 'new' && !entry.createSkaters) return error(res, 403, 'ERR005')
-            const category = p.category || choice.category
+            const skater = currentSkaters.get(skaterId)
+            if (skaterId !== 'new' && !skater) return error(res, 403, 'IMPORT_ACCESS_CHANGED')
+            if (entry.categorySource === 'database' && skater &&
+                skater.currentcategory !== p.candidates.find(c => c.id === skaterId).category) {
+                return error(res, 409, 'IMPORT_CATEGORY_CHANGED')
+            }
+            if (entry.selectedClub && (!skater || String(skater.currentclub) !== entry.selectedClub)) {
+                return error(res, 409, 'IMPORT_CLUB_CHANGED')
+            }
+            const inheritedCategory = entry.categorySource === 'database' && skater ? skater.currentcategory : p.category
+            const category = categoryNames.has(inheritedCategory) ? inheritedCategory : choice.category
             if (!categoryNames.has(category)) return error(res, 400, 'IMPORT_INVALID_CHOICES')
+            const categoryDiffers = !!skater && skater.currentcategory !== category
+            if (categoryDiffers && typeof choice.updateSkaterCategory !== 'boolean') {
+                return error(res, 400, 'IMPORT_CATEGORY_UPDATE_CHOOSE')
+            }
             if (!p.clubId && !entry.canCreateClub) return error(res, 403, 'ERR005')
             if (p.duplicate && destination && destination.competitionId !== p.destination.competitionId) {
                 return error(res, 400, 'IMPORT_INVALID_CHOICES')
             }
             plans.push({ p, skaterId, category, resolvedRow, destination,
+                updateCategory: categoryDiffers && choice.updateSkaterCategory,
                 replaceId: choice.action === 'replace' ? p.duplicateId : null })
         }
         // Revalidate permissions at confirmation, not just at preview time.
@@ -189,6 +223,7 @@ exports.commit = async (req, res, next) => {
             authorization.getPermissionsForEntity('track', req.user)
         ])
         if (plans.some(p => p && p.skaterId === 'new') && !sp.includes('C') ||
+            plans.some(p => p && p.updateCategory) && !sp.includes('U') ||
             plans.some(p => p && !p.p.clubId) && !cp.includes('C') ||
             plans.some(p => p && p.p.duplicate) && !rp.includes('U') || !rp.includes('C') ||
             !entry.competition && (!ep.includes('R') || !tp.includes('R') ||
@@ -256,7 +291,15 @@ exports.commit = async (req, res, next) => {
         if (conflicts.length) return res.status(409).send({
             code: 'IMPORT_DUPLICATE_REVIEW', message: res.__('IMPORT_DUPLICATE_REVIEW'), conflicts
         })
-        const report = { imported: [], skipped: [], failed: [], createdSkaters: [] }
+        const categoryUpdates = new Map()
+        for (const plan of plans) {
+            if (!plan || !plan.updateCategory) continue
+            if (categoryUpdates.has(plan.skaterId) && categoryUpdates.get(plan.skaterId) !== plan.category) {
+                return error(res, 400, 'IMPORT_CATEGORY_UPDATE_CONFLICT')
+            }
+            categoryUpdates.set(plan.skaterId, plan.category)
+        }
+        const report = { imported: [], skipped: [], failed: [], createdSkaters: [], updatedSkaters: [] }
         if (!entry.competition) Object.assign(report, { createdEvents: [], createdTracks: [] })
         const newlyCreated = new Map()
         const importedIds = new Set()
@@ -334,8 +377,16 @@ exports.commit = async (req, res, next) => {
                         newlyCreated.set(key, skaterId)
                         report.createdSkaters.push({ ...item, id: skaterId })
                     }
-                } else if (!await Skater.exists({ $and: [filter.getFilter('Skater', {}, req.user), { _id: skaterId }] })) {
-                    throw new Error('IMPORT_ACCESS_CHANGED')
+                } else {
+                    const skaterQuery = { $and: [filter.getFilter('Skater', {}, req.user), { _id: skaterId },
+                        ...(entry.selectedClub ? [{ currentclub: entry.selectedClub }] : [])] }
+                    if (!await Skater.exists(skaterQuery)) throw new Error('IMPORT_ACCESS_CHANGED')
+                    if (plan.updateCategory && !report.updatedSkaters.some(s => s.id === skaterId)) {
+                        const updated = await Skater.findOneAndUpdate(skaterQuery,
+                            { $set: { currentcategory: category } }, { new: true, runValidators: true })
+                        if (!updated) throw new Error('IMPORT_ACCESS_CHANGED')
+                        report.updatedSkaters.push({ ...item, id: skaterId, category })
+                    }
                 }
                 const values = {
                     competition: competitionId, skater: skaterId, club: clubId, category,
@@ -354,7 +405,8 @@ exports.commit = async (req, res, next) => {
                 importedIds.add(String(saved._id))
                 report.imported.push({
                     ...item, category, replaced: !!plan.replaceId,
-                    unknownClub: p.unknownClub, categorySubstituted: !p.category, warnings: p.warnings
+                    skaterCategoryUpdated: !!plan.updateCategory,
+                    unknownClub: p.unknownClub, categorySubstituted: category !== p.category, warnings: p.warnings
                 })
             } catch (err) {
                 console.error('Import row:', i + 2, err)

@@ -45,7 +45,8 @@ exports.formats = (req, res) => {
 exports.options = async (req, res, next) => {
     try {
         const clubs = await Club.find(filter.getFilter('Club', {}, req.user))
-        res.send({ clubs: clubs.map(c => ({ id: String(c._id), name: c.name })).sort((a, b) => a.name.localeCompare(b.name)) })
+        res.send({ clubs: clubs.map(c => ({ id: String(c._id), name: c.name })).sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })) })
     } catch (err) { next(err) }
 }
 

@@ -40,6 +40,21 @@
         for (const [value, name] of options) control.append($('<option>').val(value).text(name));
         return control;
     }
+    function populateClubs(clubs) {
+        const control = $('#RegistryImportClub').empty();
+        control.append($('<option>').val('').text(text('IMPORT_SELECT')));
+        for (const club of [...clubs].sort((a, b) => a.name.localeCompare(b.name, document.documentElement.lang || undefined,
+            { sensitivity: 'base', numeric: true }))) {
+            control.append($('<option>').val(club.id).text(club.name));
+        }
+        if (!control.data('select2')) control.select2({
+            dropdownParent: $('#RegistryImportModal'),
+            width: '100%',
+            minimumResultsForSearch: 0,
+            placeholder: text('IMPORT_SELECT')
+        });
+        control.val('').trigger('change.select2');
+    }
     function reviewDuplicates(conflicts) {
         const panel = $('#RegistryImportDuplicates').prop('hidden', false);
         if (!duplicateSelectors.size) panel.empty().append($('<h6>').text(text('IMPORT_DUPLICATE_REVIEW')));
@@ -208,8 +223,7 @@
             const [formats, options] = await Promise.all([
                 $.getJSON(`${base}/import-formats`), $.getJSON(`${base}/import-options`)
             ]);
-            $('#RegistryImportClub').append($('<option>').val('').text(text('IMPORT_SELECT')));
-            for (const club of options.clubs) $('#RegistryImportClub').append($('<option>').val(club.id).text(club.name));
+            populateClubs(options.clubs);
             for (const format of formats) $('#RegistryImportFormat').append(
                 $('<option>').val(format.id).text(format.label).attr('data-extensions', format.extensions.join(',')));
             $('#RegistryImportFormat').trigger('change');

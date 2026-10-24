@@ -26,7 +26,10 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
                     if (Object.hasOwn(props, 'value')) return props.value
                     return key === 'action' ? action : key === 'skater' ? 'skater-1' :
                     key === 'category' ? category : key === '#RegistryImportUpdateCategories' ? updateSkaterCategory : '' },
-                append() { return e }, empty() { return e },
+                append(...children) { (props.children ||= []).push(...children); return e },
+                empty() { props.children = []; return e },
+                data(name) { return props[name] },
+                select2(options) { props.select2 = options; props.select2Calls = (props.select2Calls || 0) + 1; return e },
                 on(event, callback) { props[event] = callback; return e },
                 trigger(event) { props.triggered = event; if (props[event]) props[event](); return e }
             }
@@ -34,7 +37,7 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
         }
         return elements.get(key)
     }
-    const document = {}
+    const document = { documentElement: { lang: 'es' } }
     const $ = key => key === document ? { on: (_event, selector, handler) => handlers.set(selector, handler) } :
         element(typeof key === 'string' && key.startsWith('<') ? `${key}:${created++}` : key)
     let lastRequest
@@ -71,9 +74,11 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
         rowSelectors.push({ action: $('action'), skaters: $('skater'), category: $('category') });
         ${renderPreview ? `review(${JSON.stringify(renderPreview)});` : ''}
         testState.controls = rowSelectors;
+        testState.populateClubs = populateClubs;
     }());`), context)
     return { elements, requests: () => requests, lastRequest: () => lastRequest,
         controls: () => testState.controls,
+        populateClubs: clubs => testState.populateClubs(clubs),
         control: element,
         submit: () => handlers.get('#RegistryImportForm').call({}, { preventDefault() {} }),
         changeOptions: () => handlers.get([...handlers.keys()].find(key => key.startsWith('#RegistryImportCategorySource')))(),
@@ -283,4 +288,26 @@ test('unchecked club filtering sends no club restriction and option changes inva
     assert.equal(h.control('#RegistryImportClub').props.disabled, false)
     await h.commit()
     assert.equal(h.requests(), 1)
+})
+
+test('club selector sorts names alphabetically and always enables search inside the import modal', () => {
+    const h = harness()
+    const clubs = [
+        { id: 'z', name: 'Zaragoza' }, { id: 'b', name: 'barcelona' },
+        { id: 'a', name: 'Álava' }, { id: 'c', name: 'CPV RIVAS' }
+    ]
+    h.populateClubs(clubs)
+    const control = h.control('#RegistryImportClub')
+    assert.deepEqual(control.props.children.map(c => c.props.text),
+        ['IMPORT_SELECT', 'Álava', 'barcelona', 'CPV RIVAS', 'Zaragoza'])
+    assert.deepEqual(control.props.children.map(c => c.val()), ['', 'a', 'b', 'c', 'z'])
+    assert.equal(control.props.select2.minimumResultsForSearch, 0)
+    assert.equal(control.props.select2.dropdownParent, h.control('#RegistryImportModal'))
+    assert.equal(control.props.select2.width, '100%')
+    assert.equal(control.props.select2Calls, 1)
+    h.populateClubs(clubs)
+    assert.equal(control.props.select2Calls, 1)
+    assert.equal(control.props.children.length, 5)
+    assert.equal(control.val(), '')
+    assert.deepEqual(clubs.map(c => c.id), ['z', 'b', 'a', 'c'])
 })

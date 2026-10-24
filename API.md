@@ -193,7 +193,9 @@ se solicita una nueva revision. El informe incluye `updatedSkaters`, con las fic
 actualizadas, incluso si despues falla el guardado de su registro.
 Los clubes desconocidos del fichero usan UNKNOWN.
 El filtro opcional por `clubId` usa exclusivamente `currentclub` de la ficha,
-no el club del fichero. Solo ofrece candidatos pertenecientes al club seleccionado
+no el club del fichero. El selector de clubes esta ordenado alfabeticamente y
+permite escribir para buscar con Select2, tambien dentro del modal.
+Solo ofrece candidatos pertenecientes al club seleccionado
 y comprueba de nuevo la pertenencia al confirmar. Las filas sin un patinador
 identificado de ese club, incluidos los nuevos, se omiten con motivo explicito.
 El filtro no cambia el club que se guarda en el registro (que procede del fichero).

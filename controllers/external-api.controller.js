@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const Registry = require('../models/registry.model')
 const Skater = require('../models/skater.model')
+const { countryFilter } = require('../utils/registry-country')
 
 const MAX_LIMIT = 500
 const REGISTRY_FILTERS = ['skater', 'club', 'category', 'competition', 'race', 'distance', 'rail', 'starting', 'trainingHeat', 'trainingPercentage']
@@ -27,6 +28,7 @@ function getObjectId(value, field) {
 
 function getRegistryFilter(body) {
   const filter = {}
+  if (hasValue(body.country)) filter.country = countryFilter(body.country)
 
   REGISTRY_FILTERS.forEach(field => {
     const value = body[field]
@@ -90,7 +92,6 @@ function getPopulateFilters(body) {
   if (hasValue(body.track)) competitionMatch.track = getObjectId(body.track, 'track')
   if (hasValue(body.season)) competitionMatch.season = String(body.season)
   if (hasValue(body.gender)) skaterMatch.gender = String(body.gender)
-  if (hasValue(body.country)) skaterMatch.country = String(body.country)
 
   return { competitionMatch, skaterMatch }
 }
@@ -118,7 +119,7 @@ async function findRegistries(body, includeAll) {
   const { competitionMatch, skaterMatch } = getPopulateFilters(body)
   const pagination = getPagination(body)
   const query = Registry.find(filter)
-    .select('date skater club category competition race distance rail starting trainingHeat trainingPercentage times comments')
+    .select('date skater club category country competition race distance rail starting trainingHeat trainingPercentage times comments')
     .populate({ path: 'skater', select: 'name lastname currentclub currentcategory gender country birthDate active', populate: { path: 'currentclub', select: 'name' }, match: skaterMatch })
     .populate({ path: 'club', select: 'name' })
     .populate({ path: 'competition', populate: { path: 'track', select: 'name fullname' }, match: competitionMatch })
@@ -195,7 +196,6 @@ exports.searchRecords = async (req, res, next) => {
       if (!Number.isFinite(totalTime)) return
 
       item.totalTime = totalTime
-      item.country = item.skater.country
       item.gender = item.skater.gender
       item.season = item.competition.season
       item.track = item.competition.track ? item.competition.track.name : null

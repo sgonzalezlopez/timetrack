@@ -32,9 +32,19 @@ async function fixture() {
     return workbook
 }
 const record = (category, time, overrides = {}) => ({
-    category, date: '2026-10-23', distance: 500, times: [time], race: '500',
+    category, date: '2026-10-23', distance: 500, times: [time], race: '500', country: 'ESP',
     skater: { fullname: category, gender: category.startsWith('L') ? 'F' : 'M', country: 'ESP' },
     competition: { training: false }, ...overrides
+})
+
+test('category records honor result nationality even when the current profile has changed', async () => {
+    const { count, sheet } = await update([
+        record('MA1', 41000, { country: 'ES', skater: { fullname: 'Changed', gender: 'M', country: 'FR' } }),
+        record('MA1', 39000, { country: 'FR' }),
+        record('MA1', 38000, { country: undefined })
+    ])
+    assert.equal(count, 3)
+    assert.equal(block(sheet, 'ABSOLUTA').find(b => b.label === '500M, M').time, 41000)
 })
 async function update(records, options = {}, workbook) {
     workbook = workbook || await fixture()
@@ -107,7 +117,7 @@ test('updates each exact group independently and excludes foreign skaters and tr
         record('MSA', 30000), record('MA2', 33000), record('MB2', 32000),
         record('MC1', 31000), record('MYA', 29000), record('M30', 34000),
         record('LA2', 35000), record('LYC', 36000),
-        record('MA1', 1, { skater: { fullname: 'Foreign', country: 'FRA', gender: 'M' } }),
+        record('MA1', 1, { country: 'FRA', skater: { fullname: 'Foreign', country: 'FRA', gender: 'M' } }),
         record('MA1', 2, { competition: { training: true } })
     ]
     const { sheet, updated } = await update(records)

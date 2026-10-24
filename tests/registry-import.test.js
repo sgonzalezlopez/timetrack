@@ -163,7 +163,7 @@ function harness(input, options = {}) {
     const exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/registry-import.controller.js'), 'utf8'), {
         exports, __corePath: 'core', console,
-        require: name => models[name] || (name.endsWith('authorization') ?
+        require: name => name.endsWith('i18n.config') ? { getLocale: () => 'es' } : models[name] || (name.endsWith('authorization') ?
             { getPermissionsForEntity: async entity => options.permissions && options.permissions[entity] || ['C', 'R', 'U'] } : require(name))
     })
     const req = {
@@ -460,6 +460,53 @@ test('preview performs no writes and commit imports selected event; token cannot
     assert.equal((await h.commit(preview.token, choices)).status, 409)
 })
 
+test('imports persist historical nationality from the file before the current profile, for both entry points', async () => {
+    for (const registryScope of [false, true]) {
+        const h = harness([{ ...(registryScope ? eventRow() : row()), country: 'ESP' }], { registryScope })
+        h.skaters[0].country = 'FR'
+        const { result: preview } = await h.preview()
+        assert.equal(preview.rows[0].inputCountry, 'ES')
+        assert.equal(preview.rows[0].candidates[0].country, 'FR')
+        assert.ok(preview.countries.some(c => c.id === 'ES'))
+        const { result } = await h.commit(preview.token, [importChoice()])
+        assert.equal(result.imported[0].country, 'ES')
+        assert.equal(h.writes.find(w => w[0] === 'registry')[1].country, 'ES')
+        assert.equal(h.skaters[0].country, 'FR')
+    }
+})
+
+test('imports default nationality from the selected skater but permit correction or explicit unknown without changing the profile', async () => {
+    for (const [choiceCountry, expected] of [[undefined, 'FR'], ['ESP', 'ES'], ['', null]]) {
+        const h = harness([row()])
+        h.skaters[0].country = 'FRA'
+        const { result: preview } = await h.preview()
+        const choice = importChoice()
+        if (choiceCountry !== undefined) choice.country = choiceCountry
+        const { result } = await h.commit(preview.token, [choice])
+        assert.equal(result.imported[0].country, expected)
+        assert.equal(h.writes.find(w => w[0] === 'registry')[1].country, expected)
+        assert.equal(h.skaters[0].country, 'FRA')
+    }
+})
+
+test('new skater imports save the file nationality on the result and missing nationality remains unknown', async () => {
+    for (const country of ['ESP', undefined]) {
+        const h = harness([{ ...row(), country }], { skaters: [], createSkaters: true })
+        const { result: preview } = await h.preview()
+        const { result } = await h.commit(preview.token, [importChoice({ skaterId: 'new' })])
+        assert.equal(result.imported[0].country, country ? 'ES' : null)
+        assert.equal(h.writes.find(w => w[0] === 'registry')[1].country, country ? 'ES' : null)
+    }
+})
+
+test('invalid nationality choices fail explicitly before creating any records', async () => {
+    const h = harness([row()])
+    const { result: preview } = await h.preview()
+    const { status, result } = await h.commit(preview.token, [importChoice({ country: 'invalid' })])
+    assert.equal(status, 400)
+    assert.equal(result.message, 'IMPORT_INVALID_COUNTRY')
+    assert.equal(h.writes.length, 0)
+})
 test('unknown categories require explicit valid selection before any writes', async () => {
     const h = harness([{ ...row(), category: 'Missing' }])
     const { result: preview } = await h.preview()

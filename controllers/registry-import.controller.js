@@ -11,6 +11,9 @@ const filter = require('../middlewares/data.filter')
 const { normalize, candidatesFor, validateRow, completeRow, resolveClub } = require('../utils/registry-import')
 const { destinationFor } = require('../utils/registry-import-events')
 const { resultDetails, resultKey, sameReference, fingerprint } = require('../utils/registry-import-duplicates')
+const { normalizeCountry } = require('../utils/registry-country')
+const countries = require('i18n-iso-countries')
+const i18n = require(path.join(__corePath, 'i18n/i18n.config'))
 
 const previews = new Map()
 const lifetime = 30 * 60 * 1000
@@ -93,6 +96,12 @@ exports.preview = async (req, res, next) => {
         const prepared = []
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i]
+            let inputCountry
+            try { inputCountry = normalizeCountry(row.country) }
+            catch (err) {
+                console.error('Import country:', i + 2, err)
+                return error(res, 400, 'IMPORT_INVALID_COUNTRY')
+            }
             let issue = row.team || (row.status && row.status !== 'OK') ? 'IMPORT_SPECIAL_RESULT' :
                 validateRow(row, { allowMissing: true })
             const destination = !competition && !issue ?
@@ -112,9 +121,9 @@ exports.preview = async (req, res, next) => {
                 visibleDuplicates.some(d => String(d._id) === String(duplicates[0]._id)) &&
                 String(duplicates[0].competition) === (competition ? String(competition._id) : destination && destination.competitionId)
             prepared.push({
-                index: i, row, issue, destination, candidates: candidates.map(s => ({
+                index: i, row, inputCountry, issue, destination, candidates: candidates.map(s => ({
                     id: String(s._id), name: `${s.name} ${s.lastname || ''}`.trim(),
-                    birthDate: s.birthDate, category: s.currentcategory,
+                    birthDate: s.birthDate, category: s.currentcategory, country: normalizeCountry(s.country),
                     clubResolution: resolveClub(row.clubName, s, clubs)
                 })),
                 automaticSkater: match.automatic && candidates.length === 1 ? String(candidates[0]._id) : null,
@@ -138,6 +147,8 @@ exports.preview = async (req, res, next) => {
         })
         res.send({
             token, createSkaters, seasonStartMonth, categorySource, selectedClub,
+            countries: Object.entries(countries.getNames(i18n.getLocale(req))).map(([id, name]) => ({ id, name }))
+                .sort((a, b) => a.name.localeCompare(b.name)),
             tracks: tracks.map(t => ({ id: String(t._id), name: t.name, location: t.location })),
             categories: categories.map(c => c.name).sort(),
             rows: prepared.map(({ row, ...p }) => ({
@@ -213,7 +224,15 @@ exports.commit = async (req, res, next) => {
             if (p.duplicate && destination && destination.competitionId !== p.destination.competitionId) {
                 return error(res, 400, 'IMPORT_INVALID_CHOICES')
             }
-            plans.push({ p, skaterId, category, resolvedRow, destination, clubResolution,
+            let country
+            try {
+                country = Object.hasOwn(choice, 'country') ? normalizeCountry(choice.country) :
+                    p.inputCountry || normalizeCountry(skater && skater.country)
+            } catch (err) {
+                console.error('Import country choice:', i + 2, err)
+                return error(res, 400, 'IMPORT_INVALID_COUNTRY')
+            }
+            plans.push({ p, skaterId, category, country, resolvedRow, destination, clubResolution,
                 updateCategory: categoryDiffers && choice.updateSkaterCategory,
                 replaceId: choice.action === 'replace' ? p.duplicateId : null })
         }
@@ -259,7 +278,7 @@ exports.commit = async (req, res, next) => {
                 ...pending.map(p => ({ ...resultDetails(p.row, `file:${p.index}`), name: p.row.skaterName,
                     clubName: p.clubName, fromFile: true, row: p.index + 2 }))
             ]
-            const displayRow = { ...row, category: plan.category, skater: plan.skaterId, club: plan.clubResolution.id }
+            const displayRow = { ...row, category: plan.category, country: plan.country, skater: plan.skaterId, club: plan.clubResolution.id }
             const incoming = { ...resultDetails(displayRow, `file:${i}`),
                 name: row.skaterName, clubName: plan.clubResolution.name, competition: eventKey }
             plan.duplicateDetails = external
@@ -398,7 +417,7 @@ exports.commit = async (req, res, next) => {
                     }
                 }
                 const values = {
-                    competition: competitionId, skater: skaterId, club: clubId, category,
+                    competition: competitionId, skater: skaterId, club: clubId, category, country: plan.country,
                     date: resolvedRow.date, race: p.row.race, distance: resolvedRow.distance,
                     times: p.row.times, rail: p.row.rail, starting: p.row.starting,
                     source: p.row.source, externalReference: p.row.externalReference
@@ -413,7 +432,7 @@ exports.commit = async (req, res, next) => {
                 } else saved = await Registry.create(values)
                 importedIds.add(String(saved._id))
                 report.imported.push({
-                    ...item, category, replaced: !!plan.replaceId,
+                    ...item, category, country: plan.country, replaced: !!plan.replaceId,
                     skaterCategoryUpdated: !!plan.updateCategory,
                     club: clubId, clubName: plan.clubResolution.name, clubSource: plan.clubResolution.source,
                     unknownClub: plan.clubResolution.unknown, categorySubstituted: category !== p.category,

@@ -4,6 +4,7 @@ const filter = require('../middlewares/data.filter')
 const { tidy, groupBy, n, summarize, arrange, fullSeq, complete, min, first } = require('@tidyjs/tidy');
 const countrylist = require('i18n-iso-countries');
 const i18n = require(path.join(__corePath, "/i18n/i18n.config"));
+const { normalizeCountry, countryFilter } = require('../utils/registry-country')
 
 
 exports.getAll = (req, res) => {
@@ -37,29 +38,25 @@ exports.get = (req, res) => {
     }
 }
 
-exports.create = (req, res) => {
+exports.create = async (req, res, next) => {
     try {
         if (!req.body.times) req.body.times = []
-        Model.create(parseBody(req.body))
-            .then(item => {
-                res.send(item)
-            })
+        res.send(await Model.create(parseBody(req.body)))
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.update = (req, res) => {
+exports.update = async (req, res, next) => {
     try {
-        Model.findOneAndUpdate(filter.getFilter('Registry', { _id: req.params.id }, req.user), parseBody(req.body), {new: true})
-            .then(item => {
-                if (item) res.send(item)
-                else res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
-            })
+        const item = await Model.findOneAndUpdate(filter.getFilter('Registry', { _id: req.params.id }, req.user),
+            parseBody(req.body), {new: true, runValidators: true})
+        if (item) res.send(item)
+        else res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
@@ -92,6 +89,7 @@ exports.find = (req, res) => {
         if (req.body.season) competitionPopulate.match.season = { $eq: req.body.season }
         if (req.body.category) req.body.category = { $in: req.body.category }
         if (req.body.gender) skaterPopulate.match.gender = { $eq: req.body.gender }
+        if (req.body.country) req.body.country = countryFilter(req.body.country)
 
         Model.find(filter.getFilter('Registry', parseBody(req.body), req.user))
             .populate(skaterPopulate)
@@ -127,8 +125,7 @@ async function getRecords(req) {
         if (req.body.season) competitionPopulate.match.season = { $eq: req.body.season }
         if (req.body.category) req.body.category = { $in: req.body.category }
         if (req.body.gender) skaterPopulate.match.gender = { $eq: req.body.gender }
-        if (req.body.country) skaterPopulate.match.country = Array.isArray(req.body.country) ?
-            { $in: req.body.country } : { $eq: req.body.country }
+        if (req.body.country) req.body.country = countryFilter(req.body.country)
 
         return Model.find(filter.getFilter('Registry', parseBody(req.body), req.user))
             .populate(skaterPopulate)
@@ -139,10 +136,9 @@ async function getRecords(req) {
                 if (req.body.track) items = items.filter(i => i.competition != null)
                 if (req.body.season) items = items.filter(i => i.competition != null)
                 if (req.body.gender) items = items.filter(i => i.skater != null)
-                if (req.body.country) items = items.filter(i => i.skater != null)
                 items.forEach(a => {
                     a.totalTime = a.times ? a.times.reduce((p, b) => p + b, 0) : null
-                    a.country = countrylist.getName(a.skater.country, i18n.getLocale(req))
+                    a.countryName = a.country ? countrylist.getName(a.country, i18n.getLocale(req)) : ''
                     a.season = a.competition.season
                     a.track = a.competition.track.name
                     a.gender = a.skater.gender
@@ -183,7 +179,7 @@ exports.getStatsSummary = async (req, res) => {
 
         const competitionPopulate = getCompetitionPopulate(req.body)
         const registries = await Model.find(filter.getFilter('Registry', parseBody({ skater: req.body.skater }), req.user))
-            .select('date category race distance times club competition')
+            .select('date category country race distance times club competition')
             .populate({ path: 'club', select: 'name' })
             .populate(competitionPopulate)
             .lean()
@@ -215,7 +211,7 @@ exports.getStatsRace = async (req, res) => {
 
         const competitionPopulate = getCompetitionPopulate(req.body)
         const registries = await Model.find(filter.getFilter('Registry', parseBody({ skater: req.body.skater, race: req.body.race }), req.user))
-            .select('date category race distance times competition')
+            .select('date category country race distance times competition')
             .populate(competitionPopulate)
             .sort({ date: 1 })
             .lean()
@@ -360,6 +356,7 @@ function getBestRecords(data, ntop, bestForSkater) {
             var nBest = data.sort((a, b) => a.totalTime - b.totalTime).slice(0, ntop).map((a, index) => {
                 a._doc.totalTime = a._doc.times.reduce((p, b) => p + b, 0)
                 a._doc.country = a.country
+                a._doc.countryName = a.countryName
                 a._doc.position = index + 1;
                 return a._doc;
             })
@@ -521,6 +518,7 @@ function getElements(races, n) {
         var nBest = race[1].sort((a, b) => a.totalTime - b.totalTime).slice(0, n).map((a, index) => {
             a._doc.totalTime = a._doc.times.reduce((p, b) => p + b, 0)
             a._doc.country = a.country
+            a._doc.countryName = a.countryName
             a._doc.gender = a.gender
             a._doc.position = index + 1;
             return a._doc;
@@ -537,6 +535,9 @@ function parseBody(body) {
         for (const key in body) {
             if (Object.hasOwnProperty.call(body, key)) {
                 values[key] = body[key] == "" ? null : body[key];
+                if (key === 'country' && values[key] != null && typeof values[key] !== 'object') {
+                    values[key] = normalizeCountry(values[key])
+                }
             }
         }
 

@@ -23,6 +23,9 @@ async function update(req, res, next, mode = 'records') {
         req.body = filters
         const groupBy = filters.groupBy
         const records = await getRecords(req)
+        if (filters.country && !records.length) {
+            return res.status(400).send({ message: res.__('RECORDS_COUNTRY_EMPTY') })
+        }
         let result
         try {
             const updater = mode === 'allround' ? updateAllroundExcel :

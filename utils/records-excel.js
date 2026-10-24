@@ -130,7 +130,7 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
             })
             continue
         }
-        const extra = groupBy === 'country' ? record.country || record.skater.country :
+        const extra = groupBy === 'country' ? record.countryName || record.country :
             groupBy === 'track' ? record.competition.track && record.competition.track.name :
                 groupBy === 'season' ? record.competition.season : ''
         const key = JSON.stringify([extra || '', record.race, record.skater.gender])

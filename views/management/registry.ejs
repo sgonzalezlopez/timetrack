@@ -81,6 +81,13 @@
 							</div>
 						</div>
 						<div class="col-sm-6">
+							<div class="form-group row">
+								<label for="country" class="col-sm-3 text-end control-label col-form-label"><%= __('MODEL_Registry_country') %></label>
+								<div class="col-sm-9">
+									<select id="country" name="country" class="form-select shadow-none" style="width:100%" data-value="<%= locals.object && object.country ? object.country : '' %>"></select>
+									<small><%= __('REGISTRY_COUNTRY_HELP') %></small>
+								</div>
+							</div>
 						</div>
 					</div>
 					<div class="row">
@@ -341,13 +348,31 @@
 	})
 
 	$('#skater').on('change', function() {
+		const selectedSkater = $(this).val();
 		core.api.getById('/api/skater', $(this).val(), function(data) {
+			if ($('#skater').val() !== selectedSkater) return;
 			$('#club').val(data && data.currentclub ? data.currentclub._id : '')
 			$('#club').trigger('change')
 			$('#category').val(data && data.currentcategory ? data.currentcategory : '')
 			$('#category').trigger('change')
+			if (!$('#id').val()) setRegistryCountry(data && data.country || '');
 		})
 	})
+	function setRegistryCountry(value) {
+		const country = $('#country');
+		if (value && !Array.from(country[0].options).some(option => option.value === value)) {
+			country.append($('<option>').val(value).text(value));
+		}
+		country.attr('data-value', value).val(value).trigger('change');
+	}
+	$(document).ready(async function () {
+		const country = $('#country');
+		const options = await getCountries();
+		const selected = country.val() || country.attr('data-value') || '';
+		country.append($('<option>').val('').text('<%= __("REGISTRY_COUNTRY_UNKNOWN") %>'));
+		country.select2({ data: options, width: '100%' });
+		setRegistryCountry(selected);
+	});
 
 	$('#TimeEntryModal').on('show.bs.modal', function(e) {
 		const selectedCompetitionId = $('#competition').val();

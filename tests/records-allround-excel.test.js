@@ -29,7 +29,7 @@ async function fixture() {
 
 function marks(id, gender, times, overrides = {}) {
     return [500, 1000, 1500, 3000].flatMap((distance, i) => times[i] == null ? [] : [{
-        distance, times: [times[i]], skater: { _id: id, fullname: id, gender, country: 'ESP' },
+        distance, times: [times[i]], country: 'ESP', skater: { _id: id, fullname: id, gender, country: 'ESP' },
         competition: { training: false }, ...overrides
     }])
 }
@@ -68,7 +68,7 @@ test('orders complete skaters by AR then incomplete by first available distance 
 test('takes best mark per distance and identity, excludes foreign and training and ignores irrelevant distances', async () => {
     const { sheet, count } = await update([
         ...marks('one', 'M', [41000, 81000]), ...marks('one', 'M', [40000, 82000]),
-        ...marks('foreign', 'M', [10000], { skater: { _id: 'foreign', fullname: 'Foreign', gender: 'M', country: 'FRA' } }),
+        ...marks('foreign', 'M', [10000], { country: 'FRA', skater: { _id: 'foreign', fullname: 'Foreign', gender: 'M', country: 'FRA' } }),
         ...marks('training', 'M', [10000], { competition: { training: true } }),
         ...marks('irrelevant', 'M', [10000], { distance: 100 })
     ])
@@ -79,6 +79,18 @@ test('takes best mark per distance and identity, excludes foreign and training a
     assert.equal(sheet.getCell('E2').value, null)
 })
 
+test('Allround uses nationality at the time of each distance and excludes unknown nationality', async () => {
+    const records = [
+        ...marks('changed', 'M', [41000], { country: 'ES', skater: { _id: 'changed', fullname: 'Changed', gender: 'M', country: 'FR' } }),
+        ...marks('changed', 'M', [39000], { country: 'FR' }),
+        ...marks('changed', 'M', [null, 80000], { country: 'FR' }),
+        ...marks('unknown', 'M', [38000], { country: undefined })
+    ]
+    const { sheet, count } = await update(records)
+    assert.equal(count, 1)
+    assert.equal(sheet.getCell('C2').value, '41,00')
+    assert.equal(sheet.getCell('D2').value, null)
+})
 test('does not merge distinct skaters with identical names and sums split times', async () => {
     const records = [
         ...marks('id-one', 'F', [40000]),
@@ -97,13 +109,14 @@ test('does not merge distinct skaters with identical names and sums split times'
 test('empty or ineligible results fail without producing an empty replacement workbook', async () => {
     await assert.rejects(update([]), /RECORDS_ALLROUND_EMPTY/)
     await assert.rejects(update(marks('foreign', 'M', [40000], {
+        country: 'FRA',
         skater: { _id: 'foreign', fullname: 'Foreign', gender: 'M', country: 'FRA' }
     })), /RECORDS_ALLROUND_EMPTY/)
 })
 
 test('accepts the ES code saved by the skater selector as well as legacy ESP', async () => {
     const records = [...marks('one', 'M', [40000]), ...marks('two', 'F', [42000])]
-    records[0].skater.country = 'ES'
+    records[0].country = 'ES'
     const { sheet, count } = await update(records)
     assert.equal(count, 2)
     assert.equal(sheet.getCell('B2').value, 'one')

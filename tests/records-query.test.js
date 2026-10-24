@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 
-function harness({ countries = ['ESP', 'ESP', 'ESP'] } = {}) {
+function harness({ countries = ['ESP', 'ESP', 'ESP'], profileCountries = ['FR', 'FR', 'FR'] } = {}) {
     const exports = {}, queries = [], populations = []
     const items = [
         { id: 'a', skater: 'one', time: 40000 },
@@ -19,15 +19,12 @@ function harness({ countries = ['ESP', 'ESP', 'ESP'] } = {}) {
                 then: callback => Promise.resolve(callback(items.map((item, index) => {
                     const raw = {
                         _id: item.id, race: '500', distance: 500, times: [item.time], date: '2026-10-23',
-                        skater: { id: item.skater, name: item.skater, gender: 'M', country: countries[index] },
+                        country: countries[index],
+                        skater: { id: item.skater, name: item.skater, gender: 'M', country: profileCountries[index] },
                         competition: { name: 'Race', season: '2026-2027', track: { name: 'Track' } }
                     }
-                    const country = populations.find(p => p.path === 'skater').match.country
-                    if (country && !(country.$in ? country.$in.includes(raw.skater.country) : country.$eq === raw.skater.country)) {
-                        raw.skater = null
-                    }
                     return { ...raw, _doc: raw }
-                })))
+                }).filter(item => !query.country || query.country.$in.includes(item.country))))
             }
             return chain
         }
@@ -68,7 +65,8 @@ test('shared records query applies access filter and current gender, country, tr
     const skater = h.populations.find(p => p.path === 'skater')
     const competition = h.populations.find(p => p.path === 'competition')
     assert.equal(skater.match.gender.$eq, 'M')
-    assert.equal(skater.match.country.$eq, 'ESP')
+    assert.equal(skater.match.country, undefined)
+    assert.deepEqual(Array.from(h.queries[0].country.$in), ['ES', 'ESP'])
     assert.equal(competition.match.track.$eq, 'track-id')
     assert.equal(competition.match.season.$eq, '2026-2027')
     assert.equal(competition.match.training.$eq, 'false')
@@ -80,6 +78,26 @@ test('historical query includes both ES from the country selector and legacy ESP
         top: '*', groupBy: 'none', bestForSkater: 'false', country: ['ES', 'ESP'], training: 'false'
     } })
     assert.deepEqual(Array.from(results, record => record._id), ['a', 'c'])
-    const skater = h.populations.find(p => p.path === 'skater')
-    assert.deepEqual(Array.from(skater.match.country.$in), ['ES', 'ESP'])
+    assert.deepEqual(Array.from(h.queries[0].country.$in), ['ES', 'ESP'])
+    assert.equal(results[0].country, 'ES')
+    assert.equal(results[0].skater.country, 'FR')
+})
+
+test('old unknown countries stay unknown and are excluded from country filters despite a Spanish profile', async () => {
+    const h = harness({ countries: [undefined, 'FR', 'ES'], profileCountries: ['ES', 'ES', 'FR'] })
+    const all = await h.exports.getRecords({ user: {}, body: { top: '*', groupBy: 'none' } })
+    assert.equal(all.find(r => r._id === 'a').country, undefined)
+    const spanish = await h.exports.getRecords({ user: {}, body: { top: '*', groupBy: 'none', country: 'ES' } })
+    assert.deepEqual(Array.from(spanish, r => r._id), ['c'])
+    assert.equal(spanish[0].country, 'ES')
+    assert.equal(spanish[0].skater.country, 'FR')
+})
+
+test('ordinary registry searches also apply country filters to the mark, not the current skater', async () => {
+    const h = harness({ countries: ['ES', 'FR', undefined], profileCountries: ['FR', 'ES', 'ES'] })
+    let response
+    await h.exports.find({ user: {}, body: { country: 'ES' } }, { send: items => { response = items } })
+    assert.deepEqual(Array.from(response, r => r._doc._id), ['a'])
+    assert.deepEqual(Array.from(h.queries[0].country.$in), ['ES', 'ESP'])
+    assert.equal(h.populations.find(p => p.path === 'skater').match.country, undefined)
 })

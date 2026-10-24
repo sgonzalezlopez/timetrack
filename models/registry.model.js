@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 var Schema = mongoose.Schema;
+const { normalizeCountry } = require('../utils/registry-country');
 
 // creating user schema
 const RegistrySchema = mongoose.Schema({
@@ -19,6 +20,10 @@ const RegistrySchema = mongoose.Schema({
     category : {
         type : String,
         combo : { type : 'categories'}
+    },
+    country: {
+        type: String,
+        set: normalizeCountry
     },
     competition: {
         type: Schema.Types.ObjectId,
@@ -80,6 +85,14 @@ RegistrySchema.virtual('totalTime').get(function () {
 });
 
 RegistrySchema.index({ skater: 1, race: 1, date: 1 });
+RegistrySchema.pre('validate', async function () {
+    // Do not replace an invalid explicit country and clear Mongoose's cast error.
+    if (this.$errors && this.$errors.country) return;
+    if (this.isNew && this.country === undefined && this.skater) {
+        const skater = await mongoose.model('Skater').findById(this.skater).select('country');
+        this.country = skater ? normalizeCountry(skater.country) : null;
+    }
+});
 RegistrySchema.index({ skater: 1, date: 1 });
 RegistrySchema.index({ competition: 1 });
 RegistrySchema.index({ club: 1 });

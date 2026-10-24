@@ -80,7 +80,7 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
     }
     const skaters = new Map(), issues = []
     for (const record of records) {
-        if (!distances.includes(record.distance) || !record.skater || !['ES', 'ESP'].includes(record.skater.country) ||
+        if (!distances.includes(record.distance) || !record.skater || !['ES', 'ESP'].includes(record.country) ||
             !record.competition || [true, 'true'].includes(record.competition.training)) continue
         const id = String(record.skater._id || record.skater.id || '')
         const name = record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim()

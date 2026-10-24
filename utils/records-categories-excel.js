@@ -85,7 +85,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         }
         if (!block.slots.length) throw new Error('RECORDS_CATEGORIES_LAYOUT')
     }
-    const eligible = records.filter(record => record.skater && ['ES', 'ESP'].includes(record.skater.country) &&
+    const eligible = records.filter(record => record.skater && ['ES', 'ESP'].includes(record.country) &&
         record.competition && ![true, 'true'].includes(record.competition.training))
     const qualifies = (record, group) => {
         const category = categoryGroup(record.category)

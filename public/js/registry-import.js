@@ -72,7 +72,7 @@
             for (const [field, label] of [
                 ['name', 'MODEL_Skater'], ['clubName', 'COL_club'],
                 ['date', 'IMPORT_DATE'], ['race', 'COL_race'], ['distance', 'COL_distance'],
-                ['totalTime', 'COL_totalTime'], ['times', 'IMPORT_SPLITS'], ['category', 'COL_category'],
+                ['totalTime', 'COL_totalTime'], ['times', 'IMPORT_SPLITS'], ['category', 'COL_category'], ['country', 'COL_country'],
                 ['rail', 'COL_rail'], ['starting', 'COL_starting'], ['source', 'IMPORT_SOURCE'],
                 ['externalReference', 'IMPORT_REFERENCE']
             ]) {
@@ -172,8 +172,10 @@
             else if (!row.issue && !row.candidates.length && result.createSkaters) skaters.val('new');
             const category = select([['', text('IMPORT_SELECT')], ...result.categories.map(c => [c, c])], text('COL_category'));
             const currentCategory = $('<small class="d-block">');
+            const country = select([['', text('REGISTRY_COUNTRY_UNKNOWN')],
+                ...(result.countries || []).map(c => [c.id, c.name])], text('MODEL_Registry_country'));
             const clubDescription = $('<small class="d-block">');
-            const controls = { action, skaters, date, distance, category, skaterLocked: !!row.automaticSkater };
+            const controls = { action, skaters, date, distance, category, country, skaterLocked: !!row.automaticSkater };
             const selectedSkater = () => row.candidates.find(c => c.id === skaters.val());
             const updateDifference = () => {
                 const skater = selectedSkater();
@@ -188,13 +190,15 @@
                     skater && skater.category : row.category;
                 controls.categoryLocked = result.categories.includes(inherited);
                 category.val(controls.categoryLocked ? inherited : '').prop('disabled', controls.categoryLocked);
+                country.val(row.inputCountry || skater && skater.country || '');
                 updateDifference();
             };
             skaters.on('change', updateCategorySource);
             category.on('change', updateDifference);
             updateCategorySource();
             tr.append($('<td>').append(
-                $('<small class="d-block">').text(`${row.inputCategory || '—'}`), currentCategory, category));
+                $('<small class="d-block">').text(`${row.inputCategory || '—'}`), currentCategory, category),
+            $('<td>').append(country));
             const messages = [...row.warnings];
             if (row.issue) messages.push(row.issue);
             if (row.duplicate) messages.push('IMPORT_DUPLICATE');
@@ -266,6 +270,7 @@
         const choices = preview.rows.map((row, i) => ({
             action: rowSelectors[i].action.val(), skaterId: rowSelectors[i].skaters.val(),
             category: rowSelectors[i].category.val(),
+            country: rowSelectors[i].country.val(),
             updateSkaterCategory: $('#RegistryImportUpdateCategories').val() === 'yes' ? true :
                 $('#RegistryImportUpdateCategories').val() === 'no' ? false : undefined,
             date: rowSelectors[i].date && rowSelectors[i].date.val(),

@@ -104,6 +104,39 @@ de la plantilla no bloquean la actualizacion. Si existe un bloque X, admite marc
 mixtas. Las marcas candidatas con fecha o total invalidos producen un informe
 detallado sin duplicados entre bloques y cancelan el guardado completo.
 
+## Nacionalidad historica de las marcas
+
+`Registry.country` guarda la nacionalidad del deportista al realizar esa marca,
+separada de `Skater.country` (nacionalidad actual). Se almacena en ISO alpha2;
+se aceptan codigos ISO alpha3 al escribir o filtrar y se normalizan.
+Las consultas tambien admiten codigos alpha3 ya almacenados.
+
+- Al crear una marca sin indicar `country`, se copia una vez la nacionalidad de
+  la ficha. Puede indicarse otra nacionalidad o `null` para desconocida.
+- Al editar marcas existentes no se vuelve a copiar la ficha. Cambiar posteriormente
+  la nacionalidad del patinador no cambia ninguna marca anterior.
+- Las marcas antiguas sin este dato son desconocidas: no hay relleno automatico
+  ni inferencia a partir de la nacionalidad actual. Se corrigen desde el formulario
+  del registro. Sin filtro por pais se siguen mostrando; con filtro quedan fuera.
+- La importacion usa primero el pais del fichero, despues el de la ficha del
+  patinador seleccionado y, si faltan ambos, desconocida. La revision permite
+  corregirlo por registro, incluso seleccionar desconocida, sin cambiar la ficha.
+  `choices[].country` transmite esa correccion; si se omite se aplica la prioridad
+  anterior. Los codigos no validos producen un error explicito.
+- Busqueda de registros, Mejores registros, agrupacion por pais, estadisticas,
+  exportaciones de tablas y API externa usan o incluyen `Registry.country`.
+  Las respuestas de mejores registros mantienen el codigo en `country` y anaden
+  `countryName` para su nombre localizado; nunca sustituyen el codigo por el pais
+  actual del patinador. El pais anidado en `skater.country` sigue siendo el actual.
+- Los tres actualizadores Excel usan la nacionalidad de cada marca. Categorias
+  y Allround historicos espanoles solo consideran marcas ES/ESP; un mismo patinador
+  puede tener marcas elegibles y no elegibles en distintas fechas o distancias.
+  Si un filtro por pais no encuentra ninguna marca, no se genera un Excel vacio:
+  se informa del problema y se conserva el original.
+
+El cambio pertenece al modulo maestro timetrack, compartido por hielo y ruedas;
+no necesita modificar core ni las copias de submodulos de los consumidores.
+
 ## Importacion de resultados (interfaz autenticada)
 
 ### Actualizar Allround historico

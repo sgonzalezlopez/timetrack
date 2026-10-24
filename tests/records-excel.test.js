@@ -162,11 +162,16 @@ test('empty filtered results clear the entire historical classification and upda
 })
 
 test('group-by values are represented in headings without dropping their separate rankings', async () => {
-    const records = [result({ country: 'España' }), result({ country: 'Francia' })]
+    const records = [result({ country: 'ES', countryName: 'España' }), result({ country: 'FR', countryName: 'Francia' })]
     const { updated, groups } = await update(await fixture(), records, { groupBy: 'country' })
     assert.equal(groups, 2)
     assert.equal(updated.getWorksheet('Clas. histórica').getCell('A2').value, 'España · 500M, F')
     assert.equal(updated.getWorksheet('Clas. histórica').getCell('A4').value, 'Francia · 500M, F')
+})
+
+test('historical ranking never groups an unknown mark under the current profile nationality', async () => {
+    const { updated } = await update(await fixture(), [result({ country: undefined })], { groupBy: 'country' })
+    assert.equal(updated.getWorksheet('Clas. histórica').getCell('A2').value, '500M, F')
 })
 
 test('invalid workbooks or incomplete data fail explicitly without generating an updated workbook', async () => {

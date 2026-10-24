@@ -86,6 +86,10 @@
 							<select id="gender" name="gender" class="select2 form-select shadow-none" style="width:100%; height: 36px" data-value-list="gender" data-value=""></select> %>
 						</div>
 					</div>
+					<div class="form-group row col-md-6">
+						<label for="country" class="col-sm-3 text-end control-label col-form-label"><%= __('MODEL_Registry_country') %></label>
+						<div class="col-sm-9"><select id="country" name="country" class="form-select" style="width:100%"><option value=""></option></select></div>
+					</div>
 				</div>
 				<div class="row">
 					<div class="form-group row col-md-6">
@@ -164,6 +168,7 @@
 						<th data-field="skater.gender" data-sortable="true">
 							<%= __('COL_gender') %>
 						</th>
+						<th data-field="country" data-sortable="true"><%= __('MODEL_Registry_country') %></th>
 						<th data-field="competition.fullname" data-sortable="true">
 							<%= __('COL_competition') %>
 						</th>
@@ -206,6 +211,9 @@
 </div>
 
 <script>
+	$(document).ready(async function () {
+		$('#RegistryForm #country').select2({ data: await getCountries(), width: '100%' });
+	});
 	function actionFormatter(value, row, index) {
 		return [
 			'<a class="view" href="/management/registry/' + row._id + '" title="">',

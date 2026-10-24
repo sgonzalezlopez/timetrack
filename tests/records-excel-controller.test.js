@@ -5,7 +5,7 @@ const path = require('node:path')
 const vm = require('node:vm')
 
 function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","season":"2026-2027","groupBy":"none"}',
-    failure, issues, queryFailure, categories = false, allround = false } = {}) {
+    failure, issues, queryFailure, categories = false, allround = false, empty = false } = {}) {
     const calls = [], exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/records-excel.controller.js'), 'utf8'), {
         exports, Buffer, console,
@@ -13,7 +13,7 @@ function harness({ file = true, filters = '{"top":"3","bestForSkater":"true","se
             getRecords: async req => {
                 calls.push({ query: req.body, user: req.user })
                 if (queryFailure) throw new Error('database failed')
-                return [{ id: 'filtered' }]
+                return empty ? [] : [{ id: 'filtered' }]
             }
         } : {
             updateRecordsExcel: async (buffer, records, options) => {
@@ -88,6 +88,17 @@ test('allround without eligible results returns an explicit error rather than a 
     assert.equal(result.status, 400)
     assert.equal(result.body.message, 'RECORDS_ALLROUND_EMPTY')
     assert.equal(result.headers['Content-Type'], undefined)
+})
+
+test('country-filtered Excel updates never erase workbooks when no historical nationality qualifies', async () => {
+    for (const options of [{ categories: true }, { allround: true }, { filters: '{"country":"ES"}' }]) {
+        const h = harness({ ...options, empty: true })
+        const result = await h.run()
+        assert.equal(result.status, 400)
+        assert.equal(result.body.message, 'RECORDS_COUNTRY_EMPTY')
+        assert.equal(result.headers['Content-Type'], undefined)
+        assert.equal(h.calls.length, 1)
+    }
 })
 
 test('allround validation report identifies every invalid result and reason, without returning a workbook', async () => {

@@ -6,7 +6,7 @@ function resultDetails(row, id) {
         id, date: row.date ? new Date(row.date).toISOString() : null,
         race: row.race, distance: row.distance, times: row.times,
         totalTime: Array.isArray(row.times) ? row.times.reduce((sum, time) => sum + time, 0) : null,
-        category: row.category, rail: row.rail || '', starting: row.starting || '',
+        category: row.category, country: row.country || null, rail: row.rail || '', starting: row.starting || '',
         skater: row.skater == null ? null : String(row.skater),
         club: row.club == null ? null : String(row.club),
         source: row.source || '', externalReference: row.externalReference || ''

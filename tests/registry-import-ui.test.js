@@ -71,7 +71,7 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
             action: {val: () => ${JSON.stringify(duplicateAction)}},
             existing: {val: () => 'existing'}, token: 'review-token'
         });` : ''}
-        rowSelectors.push({ action: $('action'), skaters: $('skater'), category: $('category') });
+        rowSelectors.push({ action: $('action'), skaters: $('skater'), category: $('category'), country: $('country') });
         ${renderPreview ? `review(${JSON.stringify(renderPreview)});` : ''}
         testState.controls = rowSelectors;
         testState.populateClubs = populateClubs;
@@ -328,4 +328,27 @@ test('review shows the resolved profile club and updates it when a different can
     controls.skaters.val('skater-2').trigger('change')
     assert.match(clubElement.props.text, /NEW CLUB.*IMPORT_CLUB_NEW/)
     assert.doesNotMatch(clubElement.props.text, /UNKNOWN/)
+})
+
+test('import review defaults to file nationality before the profile and allows historical correction', async () => {
+    const data = reviewData({ countries: [{ id: 'ES', name: 'Spain' }, { id: 'FR', name: 'France' }] })
+    data.rows[0].inputCountry = 'ES'
+    data.rows[0].candidates[0].country = 'FR'
+    const h = harness({ renderPreview: data })
+    assert.equal(h.controls()[0].country.val(), 'ES')
+    h.control('#RegistryImportUpdateCategories').val('no')
+    h.controls()[0].country.val('FR')
+    await h.commit()
+    assert.equal(JSON.parse(h.lastRequest().data).choices[0].country, 'FR')
+})
+
+test('import review uses the selected profile only when file nationality is missing and supports explicit unknown', async () => {
+    const data = reviewData()
+    data.rows[0].candidates[0].country = 'FR'
+    const h = harness({ renderPreview: data })
+    assert.equal(h.controls()[0].country.val(), 'FR')
+    h.control('#RegistryImportUpdateCategories').val('no')
+    h.controls()[0].country.val('')
+    await h.commit()
+    assert.equal(JSON.parse(h.lastRequest().data).choices[0].country, '')
 })

@@ -19,6 +19,47 @@ function candidatesFor(row, skaters) {
     return { candidates, automatic: false }
 }
 
+function clubKey(value) {
+    return normalize(value).split(' ').filter(word =>
+        !['club', 'patin', 'patinaje', 'patinatge', 'patinagem', 'c', 'p', 'cp', 'cpv'].includes(word)).join('')
+}
+
+function similarClub(left, right) {
+    if (normalize(left) && normalize(left).replace(/ /g, '') === normalize(right).replace(/ /g, '')) return true
+    const a = clubKey(left), b = clubKey(right)
+    if (!a || !b) return false
+    if (a === b) return true
+    if (Math.min(a.length, b.length) < 5 || Math.abs(a.length - b.length) > Math.floor(Math.max(a.length, b.length) / 10)) return false
+    let previous = Array.from({ length: b.length + 1 }, (_, i) => i)
+    for (let i = 1; i <= a.length; i++) {
+        const current = [i]
+        for (let j = 1; j <= b.length; j++) {
+            current[j] = Math.min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+        }
+        previous = current
+    }
+    return previous[b.length] / Math.max(a.length, b.length) <= 0.1
+}
+
+function resolveClub(input, skater, clubs) {
+    const profile = skater && clubs.find(c => String(c._id) === String(skater.currentclub) && normalize(c.name) !== 'unknown')
+    const name = typeof input === 'string' ? input.trim().replace(/\s+/g, ' ') : ''
+    const missing = !normalize(name) || ['unknown', 'desconocido', 'sin club', 'n a', 'na', 'null', 'undefined'].includes(normalize(name))
+    const result = (club, source) => ({ id: String(club._id), name: club.name, source, create: false, unknown: normalize(club.name) === 'unknown' })
+    const names = club => [club.name, club.shortName].filter(Boolean)
+    if (profile && (missing || names(profile).some(alias => similarClub(name, alias)))) return result(profile, 'profile')
+    if (!missing) {
+        const exact = clubs.filter(c => names(c).some(alias => normalize(alias) === normalize(name)))
+        if (exact.length === 1) return result(exact[0], 'file')
+        const similar = exact.length ? exact : clubs.filter(c => names(c).some(alias => similarClub(name, alias)))
+        if (similar.length === 1) return result(similar[0], 'file')
+        if (!similar.length) return { id: null, name, source: 'file', create: true, unknown: false }
+        if (profile) return result(profile, 'profile')
+    }
+    const unknown = clubs.find(c => normalize(c.name) === 'unknown')
+    return unknown ? result(unknown, 'unknown') : { id: null, name: 'UNKNOWN', source: 'unknown', create: true, unknown: true }
+}
+
 function completeRow(row, choice) {
     return {
         ...row,
@@ -45,4 +86,4 @@ function validateRow(row, { allowMissing = false } = {}) {
     return null
 }
 
-module.exports = { normalize, candidatesFor, validateRow, completeRow }
+module.exports = { normalize, candidatesFor, validateRow, completeRow, resolveClub }

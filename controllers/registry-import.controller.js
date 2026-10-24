@@ -8,7 +8,7 @@ const Category = require('../models/category.model')
 const Track = require('../models/track.model')
 const authorization = require(path.join(__corePath, 'middlewares/authorization'))
 const filter = require('../middlewares/data.filter')
-const { normalize, candidatesFor, validateRow, completeRow } = require('../utils/registry-import')
+const { normalize, candidatesFor, validateRow, completeRow, resolveClub } = require('../utils/registry-import')
 const { destinationFor } = require('../utils/registry-import-events')
 const { resultDetails, resultKey, sameReference, fingerprint } = require('../utils/registry-import-duplicates')
 
@@ -76,12 +76,11 @@ exports.preview = async (req, res, next) => {
             return error(res, 400, 'IMPORT_INVALID_FILE')
         }
         if (!Array.isArray(rows) || !rows.length || rows.length > 5000) return error(res, 400, 'IMPORT_INVALID_FILE')
-        const [skaters, clubs, categories, skaterPermissions, clubPermissions, registryPermissions] = await Promise.all([
+        const [skaters, clubs, categories, skaterPermissions, registryPermissions] = await Promise.all([
             Skater.find(filter.getFilter('Skater', {}, req.user)),
             Club.find(filter.getFilter('Club', {}, req.user)),
             Category.find(),
             authorization.getPermissionsForEntity('skater', req.user),
-            authorization.getPermissionsForEntity('club', req.user),
             authorization.getPermissionsForEntity('registry', req.user)
         ])
         const createSkaters = req.body.createSkaters === 'true' && skaterPermissions.includes('C')
@@ -102,9 +101,7 @@ exports.preview = async (req, res, next) => {
             const match = issue ? { candidates: [], automatic: false } : candidatesFor(row, skaters)
             const candidates = selectedClub ? match.candidates.filter(s => String(s.currentclub) === selectedClub) : match.candidates
             if (!issue && selectedClub && !candidates.length) issue = 'IMPORT_CLUB_EXCLUDED'
-            const club = clubs.find(c => row.clubName && normalize(c.name) === normalize(row.clubName)) ||
-                clubs.find(c => c.name === 'UNKNOWN')
-            const knownClub = clubs.some(c => row.clubName && normalize(c.name) === normalize(row.clubName))
+            const clubResolution = resolveClub(row.clubName, match.automatic ? candidates[0] : null, clubs)
             const matchingCategories = categories.filter(c => row.category && c.name && normalize(c.name) === normalize(row.category))
             const category = matchingCategories.length === 1 ? matchingCategories[0] : null
             const duplicates = row.source && row.externalReference ?
@@ -117,14 +114,14 @@ exports.preview = async (req, res, next) => {
             prepared.push({
                 index: i, row, issue, destination, candidates: candidates.map(s => ({
                     id: String(s._id), name: `${s.name} ${s.lastname || ''}`.trim(),
-                    birthDate: s.birthDate, category: s.currentcategory
+                    birthDate: s.birthDate, category: s.currentcategory,
+                    clubResolution: resolveClub(row.clubName, s, clubs)
                 })),
                 automaticSkater: match.automatic && candidates.length === 1 ? String(candidates[0]._id) : null,
-                clubId: club ? String(club._id) : null, unknownClub: !knownClub,
+                clubId: clubResolution.id, clubResolution, unknownClub: clubResolution.unknown,
                 category: category ? category.name : null, duplicate: duplicates.length > 0,
                 duplicateId: canReplace ? String(duplicates[0]._id) : null,
                 warnings: [
-                    ...(!knownClub ? ['IMPORT_UNKNOWN_CLUB'] : []),
                     ...(!row.source || !row.externalReference ? ['IMPORT_NO_REFERENCE'] : [])
                 ]
             })
@@ -137,7 +134,7 @@ exports.preview = async (req, res, next) => {
             duplicateReviews: new Map(),
             skaterNames: new Map(skaters.map(s => [String(s._id), `${s.name} ${s.lastname || ''}`.trim()])),
             clubNames: new Map(clubs.map(c => [String(c._id), c.name])),
-            canCreateClub: clubPermissions.includes('C'), expires: Date.now() + lifetime, busy: false
+            expires: Date.now() + lifetime, busy: false
         })
         res.send({
             token, createSkaters, seasonStartMonth, categorySource, selectedClub,
@@ -146,6 +143,7 @@ exports.preview = async (req, res, next) => {
             rows: prepared.map(({ row, ...p }) => ({
                 ...p, skaterName: row.skaterName, gender: row.gender, race: row.race,
                 date: row.date, inputCategory: row.category || '',
+                inputClub: row.clubName || '',
                 distance: row.distance, dateText: row.dateText,
                 requiredInputs: row.requiredInputs || [], sourceLocation: row.sourceLocation,
                 competitionName: row.competitionName, trackName: row.trackName,
@@ -170,6 +168,7 @@ exports.commit = async (req, res, next) => {
         ])
         const categoryNames = new Set((await Category.find()).map(c => c.name))
         const skaters = await Skater.find(filter.getFilter('Skater', {}, req.user))
+        const clubs = await Club.find(filter.getFilter('Club', {}, req.user))
         const currentSkaters = new Map(skaters.map(s => [String(s._id), s]))
         if (entry.selectedClub && !await Club.exists({
             $and: [filter.getFilter('Club', {}, req.user), { _id: entry.selectedClub }]
@@ -207,11 +206,14 @@ exports.commit = async (req, res, next) => {
             if (categoryDiffers && typeof choice.updateSkaterCategory !== 'boolean') {
                 return error(res, 400, 'IMPORT_CATEGORY_UPDATE_CHOOSE')
             }
-            if (!p.clubId && !entry.canCreateClub) return error(res, 403, 'ERR005')
+            const clubResolution = resolveClub(p.row.clubName, skater, clubs)
+            const reviewedClub = skater ? p.candidates.find(c => c.id === skaterId).clubResolution : p.clubResolution
+            if (clubResolution.name !== reviewedClub.name || clubResolution.id !== reviewedClub.id ||
+                clubResolution.create !== reviewedClub.create) return error(res, 409, 'IMPORT_CLUB_CHANGED')
             if (p.duplicate && destination && destination.competitionId !== p.destination.competitionId) {
                 return error(res, 400, 'IMPORT_INVALID_CHOICES')
             }
-            plans.push({ p, skaterId, category, resolvedRow, destination,
+            plans.push({ p, skaterId, category, resolvedRow, destination, clubResolution,
                 updateCategory: categoryDiffers && choice.updateSkaterCategory,
                 replaceId: choice.action === 'replace' ? p.duplicateId : null })
         }
@@ -225,7 +227,7 @@ exports.commit = async (req, res, next) => {
         ])
         if (plans.some(p => p && p.skaterId === 'new') && !sp.includes('C') ||
             plans.some(p => p && p.updateCategory) && !sp.includes('U') ||
-            plans.some(p => p && !p.p.clubId) && !cp.includes('C') ||
+            plans.some(p => p && p.clubResolution.create) && !cp.includes('C') ||
             plans.some(p => p && p.p.duplicate) && !rp.includes('U') || !rp.includes('C') ||
             !entry.competition && (!ep.includes('R') || !tp.includes('R') ||
                 plans.some(p => p && p.destination.createEvent) && !ep.includes('C') ||
@@ -255,11 +257,11 @@ exports.commit = async (req, res, next) => {
                     clubName: entry.clubNames.get(String(c.club)) || String(c.club || '')
                 })),
                 ...pending.map(p => ({ ...resultDetails(p.row, `file:${p.index}`), name: p.row.skaterName,
-                    clubName: entry.clubNames.get(p.row.club) || 'UNKNOWN', fromFile: true, row: p.index + 2 }))
+                    clubName: p.clubName, fromFile: true, row: p.index + 2 }))
             ]
-            const displayRow = { ...row, category: plan.category, skater: plan.skaterId, club: plan.p.clubId }
+            const displayRow = { ...row, category: plan.category, skater: plan.skaterId, club: plan.clubResolution.id }
             const incoming = { ...resultDetails(displayRow, `file:${i}`),
-                name: row.skaterName, clubName: entry.clubNames.get(plan.p.clubId) || 'UNKNOWN', competition: eventKey }
+                name: row.skaterName, clubName: plan.clubResolution.name, competition: eventKey }
             plan.duplicateDetails = external
             if (candidates.length || pending.length) {
                 const hidden = candidates.some(c => !visibleIds.has(String(c._id)))
@@ -287,7 +289,7 @@ exports.commit = async (req, res, next) => {
                 }
             }
             plan.duplicateIncoming = incoming
-            previous.push({ key, row: displayRow, index: i })
+            previous.push({ key, row: displayRow, index: i, clubName: plan.clubResolution.name })
         }
         if (conflicts.length) return res.status(409).send({
             code: 'IMPORT_DUPLICATE_REVIEW', message: res.__('IMPORT_DUPLICATE_REVIEW'), conflicts
@@ -300,9 +302,10 @@ exports.commit = async (req, res, next) => {
             }
             categoryUpdates.set(plan.skaterId, plan.category)
         }
-        const report = { imported: [], skipped: [], failed: [], createdSkaters: [], updatedSkaters: [] }
+        const report = { imported: [], skipped: [], failed: [], createdSkaters: [], updatedSkaters: [], createdClubs: [] }
         if (!entry.competition) Object.assign(report, { createdEvents: [], createdTracks: [] })
         const newlyCreated = new Map()
+        const newClubs = new Map()
         const importedIds = new Set()
         for (let i = 0; i < plans.length; i++) {
             const plan = plans[i], original = entry.rows[i]
@@ -355,12 +358,17 @@ exports.commit = async (req, res, next) => {
                     report.failed.push({ ...item, reason: 'IMPORT_DUPLICATE_CHANGED' })
                     continue
                 }
-                let clubId = p.clubId
+                let clubId = plan.clubResolution.id || newClubs.get(normalize(plan.clubResolution.name))
                 if (clubId && !await Club.exists({ $and: [filter.getFilter('Club', {}, req.user), { _id: clubId }] })) throw new Error('IMPORT_ACCESS_CHANGED')
                 if (!clubId) {
-                    const club = await Club.findOneAndUpdate({ name: 'UNKNOWN' },
-                        { $setOnInsert: { name: 'UNKNOWN' } }, { upsert: true, new: true })
-                    clubId = club._id
+                    const result = await Club.findOneAndUpdate({ name: plan.clubResolution.name },
+                        { $setOnInsert: { name: plan.clubResolution.name } },
+                        { upsert: true, new: true, runValidators: true, rawResult: true })
+                    clubId = String(result.value._id)
+                    newClubs.set(normalize(plan.clubResolution.name), clubId)
+                    if (!result.lastErrorObject.updatedExisting) report.createdClubs.push({
+                        ...item, id: clubId, name: result.value.name
+                    })
                 }
                 let skaterId = plan.skaterId
                 if (skaterId === 'new') {
@@ -407,7 +415,9 @@ exports.commit = async (req, res, next) => {
                 report.imported.push({
                     ...item, category, replaced: !!plan.replaceId,
                     skaterCategoryUpdated: !!plan.updateCategory,
-                    unknownClub: p.unknownClub, categorySubstituted: category !== p.category, warnings: p.warnings
+                    club: clubId, clubName: plan.clubResolution.name, clubSource: plan.clubResolution.source,
+                    unknownClub: plan.clubResolution.unknown, categorySubstituted: category !== p.category,
+                    warnings: [...p.warnings, ...(plan.clubResolution.unknown ? ['IMPORT_UNKNOWN_CLUB'] : [])]
                 })
             } catch (err) {
                 console.error('Import row:', i + 2, err)

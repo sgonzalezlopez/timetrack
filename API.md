@@ -173,7 +173,7 @@ El boton Importar del evento permite revisar el fichero antes de guardar:
   `action` (`skip`, `import`, `replace`), `skaterId` (candidato o `new`), `category`
   y `updateSkaterCategory` (booleano cuando la categoria difiere de la ficha).
 
-Se requiere lectura del evento y creacion de registros; crear patinadores o el club UNKNOWN
+Se requiere lectura del evento y creacion de registros; crear patinadores o clubes
 requiere el permiso de creacion correspondiente. Sobrescribir requiere actualizar registros.
 Los nombres se normalizan sin tildes, puntuacion ni orden de palabras, y se compara el sexo.
 Las coincidencias aproximadas y multiples requieren seleccion manual.
@@ -191,14 +191,29 @@ No se admiten distintas categorias para actualizar la ficha del mismo patinador
 en una importacion. Si la categoria heredada de la ficha cambia tras la revision,
 se solicita una nueva revision. El informe incluye `updatedSkaters`, con las fichas
 actualizadas, incluso si despues falla el guardado de su registro.
-Los clubes desconocidos del fichero usan UNKNOWN.
+El club del registro se resuelve tambien para cada candidato antes de confirmar:
+- Si el nombre del fichero es muy similar al club de la ficha, se reutiliza este.
+  La comparacion ignora tildes, puntuacion, espacios y terminos genericos de club
+  o patinaje; admite hasta un 10% de ediciones en nombres de al menos cinco letras.
+  Tambien reconoce el nombre corto `shortName` configurado en el club.
+- Si el fichero no identifica club (vacio, UNKNOWN, sin club), se usa el de la ficha.
+- Si indica otro club distinto, se reutiliza una coincidencia exacta o una unica
+  coincidencia muy similar entre clubes accesibles. Si no existe, se crea con el
+  nombre del fichero y permiso C de club, sin modificar el club de la ficha existente.
+- Si hay varias coincidencias posibles, no se elige arbitrariamente: se usa el de
+  la ficha o UNKNOWN si no tiene. Sin club identificable en ninguna fuente, UNKNOWN.
+Los nuevos patinadores siguen la misma resolucion sin comparar con una ficha previa.
+La revision muestra el club resultante, su origen y si se creara. Cambiar el
+patinador seleccionado actualiza esta informacion. Si cambia la resolucion antes
+de confirmar, se exige revisar otra vez. El informe incluye `createdClubs`,
+tambien si despues falla un registro, y cada importado indica `clubName` y `clubSource`.
 El filtro opcional por `clubId` usa exclusivamente `currentclub` de la ficha,
 no el club del fichero. El selector de clubes esta ordenado alfabeticamente y
 permite escribir para buscar con Select2, tambien dentro del modal.
 Solo ofrece candidatos pertenecientes al club seleccionado
 y comprueba de nuevo la pertenencia al confirmar. Las filas sin un patinador
 identificado de ese club, incluidos los nuevos, se omiten con motivo explicito.
-El filtro no cambia el club que se guarda en el registro (que procede del fichero).
+El filtro no fuerza el club del registro: se aplican las reglas anteriores.
 Estas opciones se fijan al leer: cambiarlas en el formulario exige otra revision.
 Las filas de equipos o estados distintos de OK quedan omitidas. Un estado ausente es valido.
 Los duplicados con fuente y referencia requieren seleccion expresa para sobrescribir;

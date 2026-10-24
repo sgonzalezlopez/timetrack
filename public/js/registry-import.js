@@ -172,11 +172,15 @@
             else if (!row.issue && !row.candidates.length && result.createSkaters) skaters.val('new');
             const category = select([['', text('IMPORT_SELECT')], ...result.categories.map(c => [c, c])], text('COL_category'));
             const currentCategory = $('<small class="d-block">');
+            const clubDescription = $('<small class="d-block">');
             const controls = { action, skaters, date, distance, category, skaterLocked: !!row.automaticSkater };
             const selectedSkater = () => row.candidates.find(c => c.id === skaters.val());
             const updateDifference = () => {
                 const skater = selectedSkater();
                 currentCategory.text(skater ? `${text('IMPORT_CATEGORY_CURRENT')}: ${skater.category || '—'}` : '');
+                const club = skater ? skater.clubResolution : row.clubResolution;
+                clubDescription.text(club ? `${text('COL_club')}: ${club.name} · ${text(club.unknown ? 'IMPORT_UNKNOWN_CLUB' :
+                    club.create ? 'IMPORT_CLUB_NEW' : club.source === 'profile' ? 'IMPORT_CLUB_PROFILE' : 'IMPORT_CLUB_FILE')}` : '');
             };
             const updateCategorySource = () => {
                 const skater = selectedSkater();
@@ -196,7 +200,7 @@
             if (row.duplicate) messages.push('IMPORT_DUPLICATE');
             if (row.competitionMismatch) messages.push('IMPORT_COMPETITION_MISMATCH');
             tr.append($('<td>').append(action, skaters),
-                $('<td>').text(messages.map(text).join(' · ')));
+                $('<td>').append($('<span>').text(messages.map(text).join(' · ')), clubDescription));
             rowSelectors.push(controls);
             $('#RegistryImportRows').append(tr);
         }
@@ -317,6 +321,7 @@
                 ['imported', 'IMPORT_IMPORTED'], ['skipped', 'IMPORT_OMITTED'],
                 ['failed', 'IMPORT_FAILED'], ['createdSkaters', 'IMPORT_CREATED'],
                 ...(report.updatedSkaters ? [['updatedSkaters', 'IMPORT_UPDATED_SKATERS']] : []),
+                ...(report.createdClubs ? [['createdClubs', 'IMPORT_CREATED_CLUBS']] : []),
                 ...(report.createdEvents ? [['createdEvents', 'IMPORT_CREATED_EVENTS'], ['createdTracks', 'IMPORT_CREATED_TRACKS']] : [])
             ]) {
                 const details = $('<details>').append($('<summary>').text(`${text(label)}: ${report[key].length}`));

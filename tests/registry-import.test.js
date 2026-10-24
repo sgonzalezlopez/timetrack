@@ -3,7 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
-const { normalize, candidatesFor, validateRow, completeRow } = require('../utils/registry-import')
+const { normalize, candidatesFor, validateRow, completeRow, resolveClub } = require('../utils/registry-import')
 const { seasonFor, destinationFor } = require('../utils/registry-import-events')
 
 const row = () => ({
@@ -24,6 +24,57 @@ test('normalizes accents, punctuation, whitespace and name order, respecting gen
     const relaxed = candidatesFor({ ...row(), skaterName: 'Ona Rodríguez' }, skaters)
     assert.equal(relaxed.candidates.length, 1)
     assert.equal(relaxed.automatic, false)
+})
+
+test('club resolution reuses the profile for spelling variations, abbreviations and missing file clubs', () => {
+    const clubs = [{ _id: 'siero', name: 'CLUB PATIN SIERO' }, { _id: 'unknown', name: 'UNKNOWN' }]
+    const skater = { currentclub: 'siero' }
+    for (const name of ['Club Patín Siero', 'C.P. SIERO', 'CP SIERO', 'SIERO', '', null, 'UNKNOWN', '---', 'sin club']) {
+        const resolved = resolveClub(name, skater, clubs)
+        assert.equal(resolved.id, 'siero', String(name))
+        assert.equal(resolved.create, false)
+        assert.equal(resolved.source, 'profile')
+    }
+    const longClubs = [{ _id: 'long', name: 'CLUB PATIN VELOCIDAD ASTURIAS' }]
+    assert.equal(resolveClub('CLUB PATIN VELOCIDAD ASTURIAS', { currentclub: 'long' }, longClubs).id, 'long')
+    assert.equal(resolveClub('CLUB PATIN VELOCIDAD ASTURlAS', { currentclub: 'long' }, longClubs).id, 'long')
+    const different = resolveClub('CLUB PATIN SIERA', skater, clubs)
+    assert.equal(different.create, true, 'a different short distinctive name is not guessed')
+})
+
+test('distinct file clubs are reused or proposed for creation instead of forcing the profile club', () => {
+    const clubs = [{ _id: 'siero', name: 'CLUB PATIN SIERO' }, { _id: 'rivas', name: 'CPV RIVAS' }]
+    const skater = { currentclub: 'siero' }
+    assert.equal(resolveClub('CPV RIVAS', skater, clubs).id, 'rivas')
+    const result = resolveClub('  NUEVO   CLUB  ', skater, clubs)
+    assert.equal(result.name, 'NUEVO CLUB')
+    assert.equal(result.create, true)
+    assert.equal(result.unknown, false)
+    assert.equal(result.source, 'file')
+})
+
+test('club abbreviations use the configured shortName without creating duplicate clubs', () => {
+    const clubs = [{ _id: 'siero', name: 'CLUB PATIN SIERO', shortName: 'CPS' }]
+    assert.equal(resolveClub('CPS', { currentclub: 'siero' }, clubs).source, 'profile')
+    assert.equal(resolveClub('CPS', null, clubs).id, 'siero')
+    assert.equal(resolveClub('C.P.S.', null, clubs).id, 'siero')
+})
+
+test('new skaters reuse similar database clubs and use UNKNOWN only when neither source identifies a club', () => {
+    const clubs = [{ _id: 'siero', name: 'CLUB PATIN SIERO' }, { _id: 'unknown', name: 'UNKNOWN' }]
+    assert.equal(resolveClub('CP SIERO', null, clubs).id, 'siero')
+    assert.equal(resolveClub('ANOTHER CLUB', null, clubs).create, true)
+    assert.equal(resolveClub('', null, clubs).id, 'unknown')
+    assert.equal(resolveClub('UNKNOWN', { currentclub: 'missing' }, clubs).id, 'unknown')
+    assert.equal(resolveClub('', null, []).name, 'UNKNOWN')
+    assert.equal(resolveClub('', null, []).create, true)
+})
+
+test('ambiguous similar clubs are never assigned arbitrarily or duplicated', () => {
+    const clubs = [{ _id: 'a', name: 'CP SIERO' }, { _id: 'b', name: 'CLUB PATIN SIERO' }]
+    assert.equal(resolveClub('SIERO', null, clubs).unknown, true)
+    assert.equal(resolveClub('SIERO', { currentclub: 'b' }, clubs).id, 'b')
+    assert.equal(resolveClub('CP SIERO', null, clubs).id, 'a')
 })
 
 test('validates times, dates, names and distances without inventing zero times', () => {
@@ -53,6 +104,7 @@ function harness(input, options = {}) {
         currentcategory: 'LA2', currentclub: 'club-1' }]
     const categories = options.categories || [{ name: 'LA2' }, { name: 'Other' }]
     const club = { _id: 'club-1', name: options.unknownClub ? 'UNKNOWN' : 'RFEDH' }
+    const clubs = options.clubs || [club]
     const models = {
         '../models/registry.model': {
             find: async query => {
@@ -98,15 +150,15 @@ function harness(input, options = {}) {
             create: async values => { writes.push(['skater', values]); return { ...values, _id: 'created-skater' } }
         },
         '../models/club.model': {
-            find: async () => options.clubs || [club], exists: async () => true,
-            findOneAndUpdate: async () => { writes.push(['club']); return club }
+            find: async () => clubs, exists: async () => true,
+            findOneAndUpdate: async (query, update) => upsert(clubs, 'club', query, update)
         },
         '../models/category.model': { find: async () => categories },
         '../middlewares/data.filter': {
             getFilter: (entity, query) => entity === 'Registry' && options.hiddenRecords ?
                 { ...query, club: 'club-1' } : query
         },
-        '../utils/registry-import': { normalize, candidatesFor, validateRow, completeRow }
+        '../utils/registry-import': { normalize, candidatesFor, validateRow, completeRow, resolveClub }
     }
     const exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../controllers/registry-import.controller.js'), 'utf8'), {
@@ -128,7 +180,7 @@ function harness(input, options = {}) {
     const res = { __: s => s, status: n => { status = n; return res }, send: value => { result = value; return res } }
     const next = err => { throw err }
     return {
-        writes, req, tracks, competitions, records, skaters,
+        writes, req, tracks, competitions, records, skaters, clubs,
         options: async () => { await exports.options(req, res, next); return { result, status } },
         preview: async () => { await exports.preview(req, res, next); return { result, status } },
         commit: async (token, choices) => {
@@ -577,12 +629,95 @@ test('club membership is revalidated at confirmation before saving anything', as
     assert.equal(h.writes.length, 0)
 })
 
+test('Siero skater imports use the profile club when the parser has no club, in both entry points', async () => {
+    for (const registryScope of [false, true]) {
+        const input = { ...(registryScope ? eventRow() : row()), clubName: '',
+            skaterName: 'OLIEGTNIS MERCADO RODRIGUEZ' }
+        const h = harness([input], { registryScope, clubId: 'siero',
+            clubs: [{ _id: 'siero', name: 'CLUB PATIN SIERO' }],
+            skaters: [{ _id: 'skater-1', name: 'OLIEGTNIS', lastname: 'MERCADO RODRIGUEZ', gender: 'F',
+                currentcategory: 'LA2', currentclub: 'siero' }],
+            permissions: { club: ['R'] } })
+        const { result: preview } = await h.preview()
+        assert.equal(h.writes.length, 0)
+        assert.equal(preview.rows[0].clubResolution.name, 'CLUB PATIN SIERO')
+        assert.equal(preview.rows[0].unknownClub, false)
+        const { result } = await h.commit(preview.token, [importChoice()])
+        assert.equal(result.imported.length, 1)
+        assert.equal(h.writes.find(w => w[0] === 'registry')[1].club, 'siero')
+        assert.equal(h.skaters[0].currentclub, 'siero')
+        assert.equal(result.createdClubs.length, 0)
+    }
+})
+
+test('a distinct new file club is created once, reported, and never assigned to an existing profile', async () => {
+    const h = harness([{ ...row(), clubName: 'NEW CLUB' },
+        { ...row(), clubName: 'NEW CLUB', date: '2026-10-18', externalReference: 'second' }])
+    const { result: preview } = await h.preview()
+    assert.equal(h.writes.length, 0)
+    assert.equal(preview.rows[0].clubResolution.create, true)
+    const { result } = await h.commit(preview.token, [importChoice(), importChoice()])
+    assert.equal(result.imported.length, 2)
+    assert.equal(result.createdClubs.length, 1)
+    assert.equal(result.createdClubs[0].name, 'NEW CLUB')
+    assert.equal(h.writes.filter(w => w[0] === 'club').length, 1)
+    assert.equal(h.skaters[0].currentclub, 'club-1')
+    assert.equal(result.imported[0].clubName, 'NEW CLUB')
+    const clubId = result.createdClubs[0].id
+    assert.equal(h.writes.filter(w => w[0] === 'registry').every(w => w[1].club === clubId), true)
+})
+
+test('new file clubs require create permission before any row or club is written', async () => {
+    const h = harness([{ ...row(), clubName: 'NEW CLUB' }], { permissions: { club: ['R'] } })
+    const { result: preview } = await h.preview()
+    assert.equal((await h.commit(preview.token, [importChoice()])).status, 403)
+    assert.equal(h.writes.length, 0)
+})
+
+test('new skaters receive their resolved file club; missing clubs create UNKNOWN with an explicit report', async () => {
+    for (const name of ['NEW CLUB', '']) {
+        const h = harness([{ ...row(), clubName: name }], { createSkaters: true, skaters: [], clubs: [] })
+        const { result: preview } = await h.preview()
+        const { result } = await h.commit(preview.token, [importChoice({ skaterId: 'new' })])
+        assert.equal(result.imported.length, 1)
+        assert.equal(result.createdClubs[0].name, name || 'UNKNOWN')
+        assert.equal(h.writes.find(w => w[0] === 'skater')[1].currentclub, result.createdClubs[0].id)
+        assert.equal(h.writes.find(w => w[0] === 'registry')[1].club, result.createdClubs[0].id)
+        assert.equal(result.imported[0].unknownClub, !name)
+    }
+})
+
+test('manually selected skaters use their own resolved club, not the first candidates club', async () => {
+    const h = harness([{ ...row(), clubName: '' }], {
+        clubs: [{ _id: 'a', name: 'CLUB A' }, { _id: 'b', name: 'CLUB B' }],
+        skaters: ['a', 'b'].map(id => ({ _id: id, name: 'Ona', lastname: 'Rodriguez Cornejo',
+            gender: 'F', currentcategory: 'LA2', currentclub: id }))
+    })
+    const { result: preview } = await h.preview()
+    assert.equal(preview.rows[0].automaticSkater, null)
+    assert.equal(preview.rows[0].candidates[1].clubResolution.name, 'CLUB B')
+    const { result } = await h.commit(preview.token, [importChoice({ skaterId: 'b' })])
+    assert.equal(result.imported[0].club, 'b')
+    assert.equal(h.writes.find(w => w[0] === 'registry')[1].club, 'b')
+})
+
+test('changed club resolution invalidates the review before any writes', async () => {
+    const h = harness([{ ...row(), clubName: '' }])
+    const { result: preview } = await h.preview()
+    h.skaters[0].currentclub = undefined
+    const { status, result } = await h.commit(preview.token, [importChoice()])
+    assert.equal(status, 409)
+    assert.equal(result.message, 'IMPORT_CLUB_CHANGED')
+    assert.equal(h.writes.length, 0)
+})
+
 test('ambiguous names require selection; unknown club uses UNKNOWN; new skater is reused', async () => {
     const h = harness([row(), { ...row(), date: '2026-10-18', externalReference: 'source-row-2' }], {
         skaters: [], createSkaters: true, unknownClub: true
     })
     const { result: preview } = await h.preview()
-    assert.equal(preview.rows[0].unknownClub, true)
+    assert.equal(preview.rows[0].clubResolution.name, 'RFEDH')
+    assert.equal(preview.rows[0].clubResolution.create, true)
     const choices = preview.rows.map(() => ({ action: 'import', skaterId: 'new', category: 'LA2' }))
     const { result } = await h.commit(preview.token, choices)
     assert.equal(result.createdSkaters.length, 1)

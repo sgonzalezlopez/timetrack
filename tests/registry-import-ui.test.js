@@ -311,3 +311,21 @@ test('club selector sorts names alphabetically and always enables search inside 
     assert.equal(control.val(), '')
     assert.deepEqual(clubs.map(c => c.id), ['z', 'b', 'a', 'c'])
 })
+
+test('review shows the resolved profile club and updates it when a different candidate is selected', () => {
+    const data = reviewData()
+    data.rows[0].automaticSkater = null
+    data.rows[0].clubResolution = { name: 'UNKNOWN', unknown: true, create: false }
+    data.rows[0].candidates[0].clubResolution = { name: 'CLUB PATIN SIERO', source: 'profile', create: false }
+    data.rows[0].candidates.push({ id: 'skater-2', name: 'Other', category: 'LA2',
+        clubResolution: { name: 'NEW CLUB', source: 'file', create: true } })
+    const h = harness({ renderPreview: data })
+    const controls = h.controls()[0]
+    const clubElement = [...h.elements.values()].find(e => typeof e.props.text === 'string' && e.props.text.includes('IMPORT_UNKNOWN_CLUB'))
+    assert.ok(clubElement)
+    controls.skaters.val('skater-1').trigger('change')
+    assert.match(clubElement.props.text, /CLUB PATIN SIERO.*IMPORT_CLUB_PROFILE/)
+    controls.skaters.val('skater-2').trigger('change')
+    assert.match(clubElement.props.text, /NEW CLUB.*IMPORT_CLUB_NEW/)
+    assert.doesNotMatch(clubElement.props.text, /UNKNOWN/)
+})

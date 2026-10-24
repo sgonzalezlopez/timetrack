@@ -1,7 +1,7 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const ExcelJS = require('exceljs')
-const { updateRecordsExcel } = require('../utils/records-excel')
+const { updateRecordsExcel, shiftTailFormula } = require('../utils/records-excel')
 
 async function fixture({ reordered = false } = {}) {
     const workbook = new ExcelJS.Workbook()
@@ -44,6 +44,80 @@ async function update(workbook, records, options = {}) {
     await updated.xlsx.load(output.buffer)
     return { ...output, updated }
 }
+
+async function protectedFixture() {
+    const w = await fixture()
+    const sheet = w.getWorksheet('Clas. histórica')
+    sheet.getCell('A60').value = null
+    sheet.getCell('A8').value = 'AR - Sprint, M'
+    sheet.getCell('B8').value = '500-1000-500-1000'
+    sheet.getCell('A9').value = 1
+    sheet.getCell('B9').value = '7-8/03/2024'
+    sheet.getCell('C9').value = 'Protected skater'
+    sheet.getCell('F9').value = { formula: 'SUM(F3,F4,$F$10)', result: 140.27 }
+    sheet.getCell('F9').numFmt = '0.000'
+    sheet.getCell('C9').note = 'Keep this note with the skater'
+    sheet.getCell('H9').value = { formula: 'F9:F10*2', shareType: 'array', ref: 'H9:H10', result: 280.54 }
+    sheet.getCell('H10').value = 353.14
+    sheet.getCell('A10').value = 'AR - Big M'
+    sheet.getCell('F10').value = 176.57
+    sheet.getCell('G10').value = { formula: "'Temporada'!C2", result: 8 }
+    w.getWorksheet('Temporada').getCell('C3').value = { formula: "'Clas. histórica'!$F$9", result: 140.27 }
+    sheet.addTable({
+        name: 'Historical', ref: 'A1', headerRow: true,
+        columns: ['Pos', 'Fecha', 'Patinador', 'Categoría', 'Parciales', 'Tiempo total', 'Evento', 'Velocidad'].map(name => ({ name })),
+        rows: Array.from({ length: 6 }, (_, i) => Array.from({ length: 8 }, (_, c) => sheet.getRow(i + 2).getCell(c + 1).value)),
+        style: { theme: 'TableStyleMedium2', showRowStripes: true }
+    })
+    return w
+}
+
+test('preserves the whole Allround tail and its formulas at their original rows when generated results fit', async () => {
+    const w = await protectedFixture()
+    const s = w.getWorksheet('Clas. histórica')
+    const before = [8, 9, 10].map(n => structuredClone(s.getRow(n).values))
+    const { updated, count, groups } = await update(w, [
+        result(), result({ race: 'AR - Sprint', times: [1000], skater: { gender: 'M', fullname: 'Do not import' } })
+    ])
+    const sheet = updated.getWorksheet('Clas. histórica')
+    assert.deepEqual([8, 9, 10].map(n => sheet.getRow(n).values), before)
+    assert.equal(sheet.getCell('F9').numFmt, '0.000')
+    assert.equal(sheet.getCell('C9').note, 'Keep this note with the skater')
+    assert.equal(count, 1)
+    assert.equal(groups, 1)
+    assert.equal(sheet.getTables()[0].table.tableRef, 'A1:H10')
+    assert.equal(sheet.getTables()[0].table.style.showRowStripes, true)
+    assert.equal(updated.getWorksheet('Temporada').getCell('C3').formula, "'Clas. histórica'!$F$9")
+})
+
+test('growing results move the tail safely and update internal, absolute and cross-sheet references', async () => {
+    const w = await protectedFixture()
+    const records = Array.from({ length: 8 }, (_, i) => result({ times: [40000 + i], _id: String(i) }))
+    const { updated } = await update(w, records)
+    const sheet = updated.getWorksheet('Clas. histórica')
+    assert.equal(sheet.getCell('A11').value, 'AR - Sprint, M')
+    assert.equal(sheet.getCell('C12').value, 'Protected skater')
+    assert.equal(sheet.getCell('F12').formula, 'SUM(F3,F4,$F$13)')
+    assert.equal(sheet.getCell('F12').result, 140.27)
+    assert.equal(sheet.getCell('F13').value, 176.57)
+    assert.equal(sheet.getCell('G13').formula, "'Temporada'!C2")
+    assert.equal(sheet.getCell('C12').note, 'Keep this note with the skater')
+    assert.equal(sheet.getCell('C9').note, undefined)
+    assert.deepEqual(sheet.getCell('H12').value,
+        { formula: 'F12:F13*2', shareType: 'array', ref: 'H12:H13', result: 280.54 })
+    assert.equal(updated.getWorksheet('Temporada').getCell('C3').formula, "'Clas. histórica'!$F$12")
+    assert.equal(sheet.getTables()[0].table.tableRef, 'A1:H13')
+    const again = await update(updated, [result()])
+    assert.equal(again.updated.getWorksheet('Clas. histórica').getCell('F12').formula, 'SUM(F3,F4,$F$13)')
+})
+
+test('formula relocation adjusts only references into the protected tail, not other sheets or string literals', () => {
+    const formula = 'SUM(F3,$F$9,F8:F10,\'Clas. histórica\'!G9,Other!F9,"F9",LOG10(F9))'
+    assert.equal(shiftTailFormula(formula, 'Clas. histórica', 'Clas. histórica', 8, 3),
+        'SUM(F3,$F$12,F11:F13,\'Clas. histórica\'!G12,Other!F9,"F9",LOG10(F12))')
+    assert.equal(shiftTailFormula('F9+\'Clas. histórica\'!$F$9', 'Clas. histórica', 'Other', 8, 3),
+        'F9+\'Clas. histórica\'!$F$12')
+})
 
 test('replaces historical results, groups by race and gender and preserves other sheets and styles', async () => {
     const workbook = await fixture()

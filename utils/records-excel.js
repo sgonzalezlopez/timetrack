@@ -43,6 +43,21 @@ function getUpdateDateCell(workbook) {
     return cells[0]
 }
 
+function shiftTailFormula(formula, sheetName, localSheet, firstRow, offset) {
+    const reference = /"(?:[^"]|"")*"|(?:(?:'((?:[^']|'')+)'|([A-Za-z_\u00c0-\uffff][\w.\u00c0-\uffff]*))!)?(\$?[A-Z]{1,3})(\$?)([1-9]\d*)(?::(\$?[A-Z]{1,3})(\$?)([1-9]\d*))?/g
+    return formula.replace(reference, (match, quoted, plain, col, absolute, row, endCol, endAbsolute, endRow, index) => {
+        if (match.startsWith('"') || /[\w.[\]]/.test(formula[index - 1] || '') ||
+            /[\w(]/.test(formula[index + match.length] || '')) return match
+        const target = quoted ? quoted.replace(/''/g, "'") : plain || localSheet
+        if (target.toLowerCase() !== sheetName.toLowerCase()) return match
+        const moved = Number(row) >= firstRow ? Number(row) + offset : Number(row)
+        const movedEnd = endRow && (Number(endRow) >= firstRow ? Number(endRow) + offset : Number(endRow))
+        if (moved > 1048576 || movedEnd > 1048576) throw new Error('RECORDS_EXCEL_LAYOUT')
+        const prefix = quoted ? `'${quoted}'!` : plain ? `${plain}!` : ''
+        return `${prefix}${col}${absolute}${moved}${endCol ? `:${endCol}${endAbsolute}${movedEnd}` : ''}`
+    })
+}
+
 async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy = 'none', seasonStartMonth = 1 } = {}) {
     const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
     const currentSeason = seasonFor(today, seasonStartMonth)
@@ -78,11 +93,17 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         }
     }
     let headingTemplate, resultTemplate, currentBlock
+    let preservedStart, preservedEnd
     const blocks = new Map()
     const blockKey = (race, gender) => `${normalize(String(race)).replace(/^(\d+)m$/, '$1')}:${gender}`
     const dateCells = []
     sheet.eachRow((row, number) => {
         if (number <= headerRow) return
+        if (!preservedStart && normalize(cellText(row.getCell(1).value)) === 'ar sprint m') preservedStart = number
+        if (preservedStart) {
+            if (row.hasValues) preservedEnd = number
+            return
+        }
         row.eachCell(cell => {
             if (normalize(cellText(cell.value)) === 'a fecha') dateCells.push({ row: number, col: cell.col + 1 })
         })
@@ -110,6 +131,7 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
     })) throw new Error('RECORDS_EXCEL_LAYOUT')
     const groups = new Map(), issues = []
     for (const record of records) {
+        if (preservedStart && /^ar(?:\s|$)/.test(normalize(record.race))) continue
         const reasons = []
         if (!record.skater) reasons.push('RECORDS_EXCEL_INVALID_SKATER')
         if (!record.competition) reasons.push('RECORDS_EXCEL_INVALID_EVENT')
@@ -142,8 +164,43 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
         error.issues = issues
         throw error
     }
+    const generatedEnd = headerRow + [...groups.values()].reduce((sum, group) => sum + 1 + group.records.length, 0)
+    const tailOffset = preservedStart ? Math.max(0, generatedEnd + 1 - preservedStart) : 0
+    if (preservedEnd && preservedEnd + tailOffset > 1048576) throw new Error('RECORDS_EXCEL_LAYOUT')
+    if (tailOffset) {
+        const formulas = []
+        for (const worksheet of workbook.worksheets) worksheet.eachRow(row => row.eachCell(cell => {
+            if (cell.formula) {
+                const value = cell.value.formula ? { ...cell.value } : { formula: cell.formula,
+                    ...(cell.result === undefined ? {} : { result: cell.result }) }
+                value.formula = shiftTailFormula(cell.formula, sheet.name, worksheet.name, preservedStart, tailOffset)
+                if (value.ref) value.ref = shiftTailFormula(value.ref, sheet.name, worksheet.name, preservedStart, tailOffset)
+                formulas.push({ cell, value })
+            }
+        }))
+        for (const { cell, value } of formulas) cell.value = value
+    }
+    const preserved = []
+    if (preservedStart) {
+        for (let row = preservedStart; row <= preservedEnd; row++) {
+            const source = sheet.getRow(row)
+            preserved.push({
+                number: row + tailOffset, height: source.height, hidden: source.hidden, outlineLevel: source.outlineLevel,
+                cells: Array.from({ length: sheet.columnCount }, (_, i) => {
+                    const cell = source.getCell(i + 1)
+                    const value = cell.value && cell.value.sharedFormula ? { formula: cell.formula,
+                        ...(cell.result === undefined ? {} : { result: cell.result }) } : structuredClone(cell.value)
+                    return { value, style: structuredClone(cell.style), note: structuredClone(cell.note) }
+                })
+            })
+        }
+    }
     sheet.eachRow((row, number) => {
-        if (number > headerRow) row.eachCell({ includeEmpty: true }, cell => { cell.value = null })
+        if (number > headerRow) row.eachCell({ includeEmpty: true }, cell => {
+            cell.value = null
+            // ExcelJS's note setter creates a comment even for null or undefined.
+            delete cell._comment
+        })
     })
     function addRow(number, template) {
         const row = sheet.getRow(number)
@@ -199,10 +256,23 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
             })
         })
     }
+    for (const saved of preserved) {
+        const row = sheet.getRow(saved.number)
+        row.height = saved.height
+        row.hidden = saved.hidden
+        row.outlineLevel = saved.outlineLevel
+        saved.cells.forEach(({ value, style, note }, i) => {
+            const cell = row.getCell(i + 1)
+            cell.value = value
+            cell.style = style
+            if (note) cell.note = note
+        })
+    }
     for (const table of sheet.getTables()) {
         const range = table.table.tableRef.match(/^([A-Z]+)(\d+):([A-Z]+)\d+$/)
         if (!range || Number(range[2]) !== headerRow) throw new Error('RECORDS_EXCEL_LAYOUT')
-        table.table.tableRef = `${range[1]}${headerRow}:${range[3]}${Math.max(headerRow + 1, number - 1)}`
+        table.table.tableRef = `${range[1]}${headerRow}:${range[3]}${Math.max(headerRow + 1, number - 1,
+            preservedEnd ? preservedEnd + tailOffset : 0)}`
         table.table.autoFilterRef = table.table.tableRef
     }
     updateCell.value = today
@@ -214,7 +284,8 @@ async function updateRecordsExcel(buffer, records, { now = new Date(), groupBy =
     }
     sheet.getRow(headerRow + 1).getCell(dateColumn).numFmt = 'dd/mm/yyyy'
     workbook.calcProperties.fullCalcOnLoad = true
-    return { buffer: await writeRecordsWorkbook(workbook, buffer), count: records.length, groups: groups.size }
+    return { buffer: await writeRecordsWorkbook(workbook, buffer),
+        count: [...groups.values()].reduce((sum, group) => sum + group.records.length, 0), groups: groups.size }
 }
 
-module.exports = { updateRecordsExcel, cellText, splitTime, getUpdateDateCell }
+module.exports = { updateRecordsExcel, cellText, splitTime, getUpdateDateCell, shiftTailFormula }

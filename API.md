@@ -104,6 +104,21 @@ de la plantilla no bloquean la actualizacion. Si existe un bloque X, admite marc
 mixtas. Las marcas candidatas con fecha o total invalidos producen un informe
 detallado sin duplicados entre bloques y cancelan el guardado completo.
 
+### Clasificaciones Allround manuales al final del ranking
+
+En `Clas. historica`, desde el encabezado `AR - Sprint, M` (ignorando puntuacion,
+mayusculas y espacios) hasta el ultimo dato, el contenido es una zona protegida.
+El actualizador historico conserva sus puntuaciones, textos, formatos numericos
+y formulas; no la regenera a partir de registros ni incorpora resultados AR de
+la aplicacion a esa zona. Se amplia la tabla del ranking hasta incluirla para
+aplicar las mismas bandas azul/celeste del estilo original.
+
+Si los resultados caben, la zona mantiene sus filas originales. Si crecen hasta
+alcanzarla, se desplaza al final y se ajustan las referencias de formulas a esas
+filas, incluidas referencias absolutas y desde otras hojas. Se conservan las
+referencias a filas anteriores y a otras hojas. Se solicita recalculo al abrir.
+Esta proteccion es compartida por hielo y ruedas.
+
 ## Nacionalidad historica de las marcas
 
 `Registry.country` guarda la nacionalidad del deportista al realizar esa marca,
@@ -332,7 +347,9 @@ y registro de formatos se hacen en la aplicacion consumidora, no en sus submodul
 
 Tambien se registran `PRUEBA_RFEP` y `GENERAL_RFEP` para PDF de texto RFEP con cabeceras
 bilingues. PRUEBA_RFEP toma solo la primera clasificacion (incluyendo sus paginas de
-continuacion), sin listas de salida ni clasificaciones posteriores. GENERAL_RFEP toma
+continuacion), sin listas de salida ni clasificaciones posteriores. Si la siguiente
+tabla repite categoria y prueba pero reinicia la numeracion de puestos, es otra
+clasificacion y no se incorpora a PRUEBA_RFEP. GENERAL_RFEP toma
 todas las clasificaciones excepto la ultima tabla. No se importan puntos ni puestos.
 Se convierte `APELLIDOS, NOMBRE` a `NOMBRE APELLIDOS`; las fechas como `5-sep.-26`
 se leen como 2026-09-05 y los tiempos `h:mm:ss,mil` se guardan como unico parcial.

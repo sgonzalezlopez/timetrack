@@ -5,6 +5,8 @@ const { tidy, groupBy, n, summarize, arrange, fullSeq, complete, min, first } = 
 const countrylist = require('i18n-iso-countries');
 const i18n = require(path.join(__corePath, "/i18n/i18n.config"));
 const { normalizeCountry, countryFilter } = require('../utils/registry-country')
+const Skater = require('../models/skater.model')
+const { backfillRegistryCountries } = require('../utils/backfill-registry-country')
 
 
 exports.getAll = (req, res) => {
@@ -69,6 +71,19 @@ exports.delete = (req, res) => {
     } catch (err) {
         console.error(err);
         throw err
+    }
+}
+
+exports.backfillCountry = async (req, res, next) => {
+    if (req.body.confirm !== true) {
+        return res.status(400).send({ message: 'Country backfill confirmation is required' })
+    }
+
+    try {
+        res.send(await backfillRegistryCountries({ Registry: Model, Skater, apply: true }))
+    } catch (err) {
+        console.error(err)
+        next(err)
     }
 }
 

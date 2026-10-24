@@ -24,6 +24,7 @@ router.post("/records/find", authorization.checkPermision('registry', 'R'), cont
 router.post("/records/excel", authorization.checkPermision('registry', 'R'), authorization.isAdmin, recordsExcel.update);
 router.post("/records/excel/categories", authorization.checkPermision('registry', 'R'), authorization.isAdmin, recordsExcel.updateCategories);
 router.post("/records/excel/allround", authorization.checkPermision('registry', 'R'), authorization.isAdmin, recordsExcel.updateAllround);
+router.post("/maintenance/country-backfill", authorization.checkPermision('registry', 'U'), authorization.isAdmin, controller.backfillCountry);
 router.post("/find", authorization.checkPermision('registry', 'R'), controller.find);
 router.get("/:id", authorization.checkPermision('registry', 'R'), controller.get);
 router.put("/:id", authorization.checkPermision('registry', 'U'), controller.update);

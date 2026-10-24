@@ -1,5 +1,17 @@
 # API externa de TimeTrack
 
+## Correccion unica de nacionalidad historica
+
+Las marcas guardan la nacionalidad que tenia el patinador al realizarlas en
+`Registry.country` (codigos ISO alpha-2). En Heroku, un administrador puede
+corregir los datos historicos una sola vez desde `Mejores registros`, mediante el
+boton `Corregir nacionalidad histórica`. Tras confirmar, establece `ES` en todas
+las marcas salvo las de patinadores cuyo perfil tenga nacionalidad `CO` o `COL`,
+que se establecen en `CO`; el aviso final muestra los recuentos actualizados.
+
+Las nuevas marcas ya toman una instantanea de la nacionalidad al crearse, por lo
+que no es necesario repetir la correccion al actualizar los mejores registros.
+
 ## Actualizacion del Excel de Mejores registros (interfaz autenticada)
 
 La actualizacion de Excel solo esta disponible para administradores: el boton,

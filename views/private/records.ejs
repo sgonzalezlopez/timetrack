@@ -141,6 +141,7 @@
 						<button id="RecordsExcel_open" type="button" class="btn btn-maroon float-end"><%= __('RECORDS_EXCEL_UPDATE') %></button>
 						<button id="RecordsCategoriesExcel_open" type="button" class="btn btn-success float-end me-2"><%= __('RECORDS_CATEGORIES_UPDATE') %></button>
 						<button id="RecordsAllroundExcel_open" type="button" class="btn btn-purple float-end me-2"><%= __('RECORDS_ALLROUND_UPDATE') %></button>
+						<button id="RegistryCountryBackfill" type="button" class="btn btn-warning float-end me-2"><%= __('REGISTRY_COUNTRY_BACKFILL') %></button>
 						<% } %>
 					</div>
 				</div>
@@ -277,4 +278,31 @@
 </script>
 <% if (locals.user.roles.includes('admin')) { %>
 <%- include('./records-excel.ejs') %>
+<script>
+	(() => {
+		const button = document.getElementById('RegistryCountryBackfill')
+		const confirmation = <%- JSON.stringify(__('REGISTRY_COUNTRY_BACKFILL_CONFIRM')).replace(/</g, '\\u003c') %>
+		const success = <%- JSON.stringify(__('REGISTRY_COUNTRY_BACKFILL_SUCCESS')).replace(/</g, '\\u003c') %>
+		const error = <%- JSON.stringify(__('REGISTRY_COUNTRY_BACKFILL_ERROR')).replace(/</g, '\\u003c') %>
+
+		button.addEventListener('click', async () => {
+			if (!window.confirm(confirmation)) return
+			button.disabled = true
+			try {
+				const response = await fetch('/api/registry/maintenance/country-backfill', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ confirm: true })
+				})
+				const result = await response.json()
+				if (!response.ok) throw new Error(result.message || error)
+				window.alert(`${success}\n${result.spanishRecords} ES / ${result.colombianRecords} CO`)
+			} catch (err) {
+				window.alert(`${error}\n${err.message}`)
+			} finally {
+				button.disabled = false
+			}
+		})
+	})()
+</script>
 <% } %>

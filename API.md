@@ -80,6 +80,8 @@ Actualiza solo `Por Categorias` y la fecha de `Indice`, manteniendo las otras ho
 
 Detecta los siete bloques por sus titulos y las columnas de cada uno, conserva
 su disposicion en paralelo y desplaza las bandas inferiores cuando necesita espacio:
+Los valores de categoria como ABSOLUTA o JUNIOR dentro de los resultados no se
+interpretan como cabeceras; el titulo debe ir seguido de Distancia/Sexo.
 
 - Absoluta: todas las categorias.
 - Junior: A+B+C; no incluye Youth.

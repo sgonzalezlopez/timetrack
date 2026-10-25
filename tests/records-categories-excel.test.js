@@ -47,6 +47,22 @@ test('category records honor result nationality even when the current profile ha
     assert.equal(block(sheet, 'ABSOLUTA').find(b => b.label === '500M, M').time, 41000)
 })
 
+test('category values matching block titles are not mistaken for additional headers', async () => {
+    const workbook = await fixture()
+    const sheet = workbook.getWorksheet('Por Categorías')
+    sheet.getCell('F3').value = 'ABSOLUTA'
+    sheet.getCell('F5').value = 'JUNIOR'
+    sheet.getCell('M3').value = 'JÚNIOR B'
+    sheet.getCell('C6').value = '1200M, M'
+    sheet.getCell('E7').value = 'Unsupported distance'
+    const { sheet: updated } = await update([record('MB1', 446230, {
+        distance: 5000, skater: { fullname: 'Junior B skater', gender: 'M' }
+    })], {}, workbook)
+    assert.equal(block(updated, 'JÚNIOR B').find(slot => slot.label === '5000M, M').time, '7:26.230')
+    assert.equal(block(updated, 'ABSOLUTA').some(slot => slot.label === '1200M, M'), false)
+    assert.equal(block(updated, 'MÁSTER').length, 2)
+})
+
 test('never generates an empty replacement when no received marks qualify for any category slot', async () => {
     for (const records of [
         [],

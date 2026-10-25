@@ -37,6 +37,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
     sheet.eachRow(row => row.eachCell(cell => {
         const group = normalize(cellText(cell.value))
         if (!groups.includes(group)) return
+        if (headers.get(normalize(cellText(row.getCell(cell.col + 1).value))) !== 'race') return
         const columns = new Map()
         for (let col = cell.col + 1; col <= sheet.columnCount; col++) {
             const field = headers.get(normalize(cellText(row.getCell(col).value)))

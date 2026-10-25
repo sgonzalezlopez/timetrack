@@ -80,6 +80,9 @@ Actualiza solo `Por Categorias` y la fecha de `Indice`, manteniendo las otras ho
 
 Detecta los siete bloques por sus titulos y las columnas de cada uno, conserva
 su disposicion en paralelo y desplaza las bandas inferiores cuando necesita espacio:
+Cada banda se coloca tres filas vacias despues de la tabla mas alta de la banda
+anterior. Los huecos antiguos se compactan y el espacio crece si aumentan las
+pruebas o los empates, sin superponer las tablas.
 Los valores de categoria como ABSOLUTA o JUNIOR dentro de los resultados no se
 interpretan como cabeceras; el titulo debe ir seguido de Distancia/Sexo.
 

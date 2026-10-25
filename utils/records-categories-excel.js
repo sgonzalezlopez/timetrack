@@ -203,7 +203,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
             }
             height = Math.max(height, rowNumber - startRow)
         }
-        startRow += Math.max(height + 3, band < bands.length - 1 ? bands[band + 1] - bands[band] : 0)
+        startRow += height + 3
     }
     updateCell.value = today
     updateCell.numFmt = 'dd/mm/yyyy'

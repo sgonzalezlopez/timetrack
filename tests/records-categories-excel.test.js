@@ -318,3 +318,35 @@ test('moves and resizes all category tables with their blocks without corrupting
     assert.equal(sheet.getRow(slot.row).getCell(slot.col + 2).numFmt, 'd/m/yyyy')
     assert.notEqual(sheet.getTable('Group2').table.tableRef, 'C9:G13')
 })
+
+test('compacts old gaps and expands bands for future ties using the taller parallel table', async () => {
+    const workbook = await fixture()
+    const source = workbook.getWorksheet('Por Categorías')
+    for (let row = 29; row >= 9; row--) {
+        const target = source.getRow(row + 40)
+        source.getRow(row).eachCell(cell => {
+            target.getCell(cell.col).value = cell.value
+            cell.value = null
+        })
+    }
+    const headerRow = (sheet, title) => {
+        let found
+        sheet.eachRow(row => row.eachCell(cell => { if (cell.value === title) found = row.number }))
+        return found
+    }
+    const compact = await update([record('MB1', 40000)], {}, workbook)
+    assert.equal(headerRow(compact.sheet, 'JÚNIOR A'), 9)
+    assert.equal(headerRow(compact.sheet, 'JÚNIOR B'), 9)
+    assert.equal(headerRow(compact.sheet, 'JÚNIOR C'), 17)
+    const ties = Array.from({ length: 10 }, (_, i) => record('MB1', 40000, {
+        skater: { _id: String(i), fullname: `Tied ${i}`, gender: 'M' }
+    }))
+    const grown = await update(ties, {}, compact.updated)
+    assert.equal(headerRow(grown.sheet, 'JÚNIOR A'), 18)
+    assert.equal(headerRow(grown.sheet, 'JÚNIOR B'), 18)
+    assert.equal(headerRow(grown.sheet, 'JÚNIOR C'), 35)
+    assert.equal(headerRow(grown.sheet, 'Y+'), 35)
+    const shrunk = await update([record('MB1', 40000)], {}, grown.updated)
+    assert.equal(headerRow(shrunk.sheet, 'JÚNIOR A'), 9)
+    assert.equal(headerRow(shrunk.sheet, 'JÚNIOR C'), 17)
+})

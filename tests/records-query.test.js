@@ -23,7 +23,11 @@ function harness({ countries = ['ESP', 'ESP', 'ESP'], profileCountries = ['FR', 
                         skater: { id: item.skater, name: item.skater, gender: 'M', country: profileCountries[index] },
                         competition: { name: 'Race', season: '2026-2027', track: { name: 'Track' } }
                     }
-                    return { ...raw, _doc: raw }
+                    const prototype = {}
+                    for (const key of Object.keys(raw)) Object.defineProperty(prototype, key, {
+                        get() { return this._doc[key] }
+                    })
+                    return Object.assign(Object.create(prototype), { _doc: raw })
                 }).filter(item => !query.country || query.country.$in.includes(item.country))))
             }
             return chain
@@ -81,6 +85,43 @@ test('historical query includes both ES from the country selector and legacy ESP
     assert.deepEqual(Array.from(h.queries[0].country.$in), ['ES', 'ESP'])
     assert.equal(results[0].country, 'ES')
     assert.equal(results[0].skater.country, 'FR')
+})
+
+test('ranking preserves stored nationality when grouping copies documents without their schema getters', async () => {
+    for (const bestForSkater of ['false', 'true']) {
+        const h = harness({ countries: ['ES', 'ES', 'ESP'] })
+        const results = await h.exports.getRecords({ user: {}, body: {
+            top: '*', groupBy: 'none', bestForSkater, country: ['ES', 'ESP'], training: 'false'
+        } })
+        assert.equal(results.length, bestForSkater === 'true' ? 2 : 3)
+        assert.ok(results.every(record => ['ES', 'ESP'].includes(record.country)))
+    }
+})
+
+test('Allround accepts Spanish marks returned by the shared query with schema-backed fields', async () => {
+    const ExcelJS = require('exceljs')
+    const { updateAllroundExcel } = require('../utils/records-allround-excel')
+    const h = harness({ countries: ['ES', 'ES', 'ES'] })
+    const records = await h.exports.getRecords({ user: {}, body: {
+        top: '*', groupBy: 'none', bestForSkater: 'false', country: ['ES', 'ESP'], training: 'false'
+    } })
+    const workbook = new ExcelJS.Workbook()
+    const index = workbook.addWorksheet('Índice')
+    index.getCell('C2').value = 'Fecha de actualización:'
+    index.getCell('D2').value = new Date('2020-01-01')
+    const sheet = workbook.addWorksheet('Allround Histórico')
+    for (const [row, gender] of [[1, 'M'], [5, 'F']]) {
+        sheet.getRow(row).values = [gender, gender === 'M' ? 'Patinador' : 'Patinadora',
+            '500m', '1000m', '1500m', '3000m', 'Total AR']
+        sheet.getCell(`B${row + 1}`).value = 'Old skater'
+        sheet.getCell(`G${row + 1}`).value = { formula: `C${row + 1}+D${row + 1}/2+E${row + 1}/3+F${row + 1}/6` }
+    }
+    const output = await updateAllroundExcel(await workbook.xlsx.writeBuffer(), records)
+    assert.equal(output.count, 2)
+    const updated = new ExcelJS.Workbook()
+    await updated.xlsx.load(output.buffer)
+    assert.equal(updated.getWorksheet('Allround Histórico').getCell('C2').value, '40,00')
+    assert.equal(updated.getWorksheet('Allround Histórico').getCell('C3').value, '42,00')
 })
 
 test('old unknown countries stay unknown and are excluded from country filters despite a Spanish profile', async () => {

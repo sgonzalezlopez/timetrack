@@ -355,7 +355,6 @@ function getBestRecords(data, ntop, bestForSkater) {
         } else {
             var nBest = data.sort((a, b) => a.totalTime - b.totalTime).slice(0, ntop).map((a, index) => {
                 a._doc.totalTime = a._doc.times.reduce((p, b) => p + b, 0)
-                a._doc.country = a.country
                 a._doc.countryName = a.countryName
                 a._doc.position = index + 1;
                 return a._doc;

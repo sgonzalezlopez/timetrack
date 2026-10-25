@@ -95,8 +95,10 @@ identifica por ID, o por nombre normalizado cuando el resultado no dispone de ID
 Las tablas de cada bloque se desplazan y redimensionan junto con sus cabeceras
 al anadir distancias o empates. Se mantienen los formatos de fecha y separador de miles
 de la plantilla; los tiempos de un minuto o mas se muestran con minutos.
-Se anaden las distancias masculinas y femeninas que falten en cada bloque cuando
-existan marcas elegibles, no solo los 100 m. La categoria usada es la del registro,
+Solo se incluyen las distancias 100, 300, 500, 1000, 1500, 3000, 5000 y 10000 m.
+Las demas se excluyen aunque estuvieran en la plantilla. Se anaden las pruebas
+masculinas y femeninas que falten en cada bloque cuando existan marcas elegibles.
+La categoria usada es la del registro,
 no la actual del perfil; por ejemplo, una marca MB1 de 5000 m se incluye en Junior B
 aunque esa distancia no estuviera en la plantilla. Las marcas de la
 temporada vigente se resaltan en negrita usando la configuracion hielo/ruedas.

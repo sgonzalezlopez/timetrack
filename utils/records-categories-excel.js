@@ -6,6 +6,7 @@ const { writeRecordsWorkbook } = require('./records-workbook')
 const { finalTime } = require('./records-time')
 
 const groups = ['absoluta', 'junior', 'junior a', 'junior b', 'junior c', 'y', 'master']
+const distances = new Set([100, 300, 500, 1000, 1500, 3000, 5000, 10000])
 const headers = new Map([
     ['distancia sexo', 'race'], ['fecha', 'date'], ['patinador', 'skater'],
     ['categoria', 'category'], ['tiempo total', 'totalTime']
@@ -70,6 +71,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
             const match = label.match(/^\s*(\d+(?:[.,]\d+)?)\s*M?\s*,\s*([MFX])\s*$/i)
             if (!match) continue
             const distance = Number(match[1].replace(',', '.'))
+            if (!distances.has(distance)) continue
             if (block.slots.some(s => s.distance === distance && s.gender === match[2].toUpperCase())) {
                 throw new Error('RECORDS_CATEGORIES_LAYOUT')
             }
@@ -85,7 +87,8 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         }
         if (!block.slots.length) throw new Error('RECORDS_CATEGORIES_LAYOUT')
     }
-    const eligible = records.filter(record => record.skater && ['ES', 'ESP'].includes(record.country) &&
+    const eligible = records.filter(record => distances.has(record.distance) &&
+        record.skater && ['ES', 'ESP'].includes(record.country) &&
         record.competition && ![true, 'true'].includes(record.competition.training))
     const qualifies = (record, group) => {
         const category = categoryGroup(record.category)
@@ -97,7 +100,7 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         for (const record of eligible) {
             const { distance } = record
             const gender = record.skater.gender
-            if (Number.isFinite(distance) && distance > 0 && ['M', 'F'].includes(gender) &&
+            if (['M', 'F'].includes(gender) &&
                 qualifies(record, block.group) &&
                 !block.slots.some(s => s.distance === distance && s.gender === gender)) {
                 block.slots.push({ distance, gender })

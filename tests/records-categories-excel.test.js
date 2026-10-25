@@ -143,14 +143,37 @@ test('invalid marks for newly discovered distances cancel the update with a deta
 
 test('supports X slots explicitly present in the category template', async () => {
     const workbook = await fixture()
-    workbook.getWorksheet('Por Categorías').getCell('C2').value = '2500M, X'
+    workbook.getWorksheet('Por Categorías').getCell('C2').value = '1500M, X'
     const { sheet } = await update([
-        record('MSA', 179650, { distance: 2500, times: [null, 179650], totalTime: 179650,
+        record('MSA', 179650, { distance: 1500, times: [null, 179650], totalTime: 179650,
             skater: { fullname: 'Mixed relay', country: 'ES', gender: 'X' } })
     ], {}, workbook)
-    const result = block(sheet, 'ABSOLUTA').find(r => r.label === '2500M, X')
+    const result = block(sheet, 'ABSOLUTA').find(r => r.label === '1500M, X')
     assert.equal(result.name, 'Mixed relay')
     assert.equal(result.time, '2:59.650')
+})
+
+test('limits every category to the eight allowed distances, including slots already in the template', async () => {
+    const workbook = await fixture()
+    const sheet = workbook.getWorksheet('Por Categorías')
+    sheet.getCell('C6').value = '2500M, M'
+    sheet.getCell('E7').value = 'Old unsupported result'
+    const allowed = [100, 300, 500, 1000, 1500, 3000, 5000, 10000]
+    const records = ['MA1', 'LA1', 'MB1', 'LB1', 'MC1', 'LC1', 'MYA', 'LYA', 'M30', 'L30']
+        .flatMap(category => [...allowed, 200, 2500, 10001].map(distance =>
+            record(category, distance * 100, { distance })))
+    const output = await update(records, {}, workbook)
+    for (const title of ['ABSOLUTA', 'JÚNIOR', 'JÚNIOR A', 'JÚNIOR B', 'JÚNIOR C', 'Y+', 'MÁSTER']) {
+        const slots = block(output.sheet, title)
+        assert.deepEqual([...new Set(slots.map(slot => Number(slot.label.split('M,')[0])))], allowed)
+        for (const distance of allowed) {
+            for (const gender of ['M', 'F']) {
+                assert.ok(slots.find(slot => slot.label === `${distance}M, ${gender}`).name, `${title}: ${distance}, ${gender}`)
+            }
+        }
+    }
+    await assert.rejects(update([record('MA1', 250000, { distance: 2500 })]),
+        { message: 'RECORDS_CATEGORIES_EMPTY' })
 })
 
 test('reports invalid selected marks once even when used by several category blocks', async () => {

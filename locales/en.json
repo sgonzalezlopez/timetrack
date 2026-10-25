@@ -533,6 +533,7 @@
     "RECORDS_CATEGORIES_CONFIRM": "Update Por Categorías ignoring screen filters, using Spanish results only and excluding training, and update the index date? An exact backup of the old workbook will be saved beside the original before overwriting it.",
     "RECORDS_CATEGORIES_SHEET": "A unique Por Categorías worksheet was not found.",
     "RECORDS_CATEGORIES_LAYOUT": "The seven category blocks or their columns and races were not recognized. The file was not modified.",
+    "RECORDS_CATEGORIES_EMPTY": "No received results match the historical Spanish nationality, non-training event, distance and gender requirements of Por Categorías. The update was cancelled to avoid emptying the worksheet. The workbook was not modified.",
     "RECORDS_EXCEL_HELP": "Select the folder and workbook. All of Clas. histórica will be replaced using the current filters, including Top and Best per skater, and the index date will be updated. A backup is saved beside the original before writing. Close the workbook in Excel first.",
     "RECORDS_EXCEL_FOLDER": "Select folder",
     "RECORDS_EXCEL_UNSUPPORTED": "Use Chrome or Edge over HTTPS (or localhost) with file access permission to update the file on disk.",

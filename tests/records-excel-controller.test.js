@@ -90,6 +90,13 @@ test('allround without eligible results returns an explicit error rather than a 
     assert.equal(result.headers['Content-Type'], undefined)
 })
 
+test('category updates without matching slots return the explicit cancellation, not a downloadable workbook', async () => {
+    const result = await harness({ categories: true, failure: 'RECORDS_CATEGORIES_EMPTY' }).run()
+    assert.equal(result.status, 400)
+    assert.equal(result.body.message, 'RECORDS_CATEGORIES_EMPTY')
+    assert.equal(result.headers['Content-Type'], undefined)
+})
+
 test('country-filtered Excel updates never erase workbooks when no historical nationality qualifies', async () => {
     for (const options of [{ categories: true }, { allround: true }, { filters: '{"country":"ES"}' }]) {
         const h = harness({ ...options, empty: true })

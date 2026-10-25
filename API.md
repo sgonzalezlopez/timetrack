@@ -156,6 +156,9 @@ Las consultas tambien admiten codigos alpha3 ya almacenados.
   puede tener marcas elegibles y no elegibles en distintas fechas o distancias.
   Si un filtro por pais no encuentra ninguna marca, no se genera un Excel vacio:
   se informa del problema y se conserva el original.
+  Por Categorias tambien cancela antes de borrar celdas si ninguna marca recibida
+  cumple los requisitos de nacionalidad, evento, distancia y sexo de sus bloques
+  (`RECORDS_CATEGORIES_EMPTY`), aunque la consulta haya devuelto resultados.
 
 El cambio pertenece al modulo maestro timetrack, compartido por hielo y ruedas;
 no necesita modificar core ni las copias de submodulos de los consumidores.

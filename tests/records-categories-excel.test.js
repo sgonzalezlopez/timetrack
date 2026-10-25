@@ -46,6 +46,19 @@ test('category records honor result nationality even when the current profile ha
     assert.equal(count, 3)
     assert.equal(block(sheet, 'ABSOLUTA').find(b => b.label === '500M, M').time, 41000)
 })
+
+test('never generates an empty replacement when no received marks qualify for any category slot', async () => {
+    for (const records of [
+        [],
+        [record('MA1', 40000, { country: undefined })],
+        [record('MA1', 40000, { country: 'FR' })],
+        [record('MA1', 40000, { competition: { training: true } })],
+        [record('MA1', 40000, { distance: 2500 })],
+        [record('MA1', 40000, { skater: { fullname: 'Mixed', gender: 'X' } })]
+    ]) {
+        await assert.rejects(update(records), { message: 'RECORDS_CATEGORIES_EMPTY' })
+    }
+})
 async function update(records, options = {}, workbook) {
     workbook = workbook || await fixture()
     const output = await updateCategoriesExcel(await workbook.xlsx.writeBuffer(), records, {
@@ -188,9 +201,7 @@ test('rejects unrecognized layouts and invalid marks explicitly', async () => {
     workbook.getWorksheet('Por Categorías').getCell('B1').value = 'Other'
     await assert.rejects(update([], {}, workbook), /RECORDS_CATEGORIES_LAYOUT/)
     await assert.rejects(update([record('MA2', 0)]), /RECORDS_EXCEL_DATA/)
-    const empty = await update([])
-    assert.equal(empty.count, 0)
-    assert.equal(block(empty.sheet, 'ABSOLUTA').find(r => r.label === '500M, M').name, null)
+    await assert.rejects(update([]), /RECORDS_CATEGORIES_EMPTY/)
 })
 
 test('keeps one earliest best mark per skater while retaining ties between distinct identities', async () => {

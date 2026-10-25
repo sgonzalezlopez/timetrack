@@ -135,6 +135,9 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
         error.issues = [...issues.values()]
         throw error
     }
+    if (!blocks.some(block => block.slots.some(slot => slot.records.length))) {
+        throw new Error('RECORDS_CATEGORIES_EMPTY')
+    }
     for (const block of blocks) {
         for (let row = block.row; row <= block.lastRow; row++) {
             for (let col = block.start; col <= block.end; col++) {

@@ -371,6 +371,7 @@
   "RECORDS_CATEGORIES_CONFIRM": "Se actualizará Por Categorías sin filtros de pantalla, solo con marcas españolas y sin entrenamientos, y la fecha de Índice. Se guardará una copia exacta del Excel antiguo junto al original antes de sobrescribirlo. ¿Continuar?",
   "RECORDS_CATEGORIES_SHEET": "No se encuentra una única hoja Por Categorías.",
   "RECORDS_CATEGORIES_LAYOUT": "No se reconocen los siete bloques o sus columnas y pruebas en Por Categorías. No se ha modificado el archivo.",
+  "RECORDS_CATEGORIES_EMPTY": "Ninguna marca recibida cumple los requisitos de nacionalidad histórica española, evento sin entrenamiento, distancia y sexo de las pruebas de Por Categorías. Se ha cancelado la actualización para evitar vaciar la hoja. No se ha modificado el Excel.",
   "RECORDS_EXCEL_HELP": "Selecciona la carpeta y el Excel. Se reemplazará toda Clas. histórica con los filtros actuales, incluidos Top y Mejor por patinador, y se actualizará la fecha de Índice. Antes de guardar se creará un respaldo del original en la misma carpeta. Cierra el archivo en Excel antes de continuar.",
   "RECORDS_EXCEL_FOLDER": "Seleccionar carpeta",
   "RECORDS_EXCEL_UNSUPPORTED": "Para actualizar el archivo en disco utiliza Chrome o Edge desde HTTPS (o localhost), con permiso de acceso a archivos.",

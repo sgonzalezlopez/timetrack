@@ -37,6 +37,7 @@ async function update(req, res, next, mode = 'records') {
             console.error('Records Excel workbook:', err)
             const known = ['RECORDS_EXCEL_SHEET', 'RECORDS_EXCEL_COLUMNS', 'RECORDS_EXCEL_DATE',
                 'RECORDS_EXCEL_LAYOUT', 'RECORDS_EXCEL_DATA', 'RECORDS_CATEGORIES_SHEET', 'RECORDS_CATEGORIES_LAYOUT',
+                'RECORDS_CATEGORIES_EMPTY',
                 'RECORDS_ALLROUND_SHEET', 'RECORDS_ALLROUND_LAYOUT', 'RECORDS_ALLROUND_EMPTY']
             let message = res.__(known.includes(err.message) ? err.message : 'RECORDS_EXCEL_FILE')
             if (err.message === 'RECORDS_EXCEL_DATA' && Array.isArray(err.issues)) {

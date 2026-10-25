@@ -191,8 +191,11 @@
 						data-entity="<%=locals.model.modelName%>" 
 						data-permissions="<%=locals.permissions.join('')%>" 
 						data-save-form-parse="localFormParse"
+						data-save-after="registrySaved"
+						data-update-after="registrySaved"
 						data-savenew-after="clearForm"
 						data-new="/<%=locals.view%>">
+							<button id="RegistryForm_edit_competition_btn" type="button" class="btn btn-orange" disabled onclick="editRegistryCompetition()"><%= __('REGISTRY_EDIT_COMPETITION') %></button>
 							<button id="RegistryForm_enter_times_btn" type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#TimeEntryModal"><%= __('ENTER_TIMES') %></button>
 						</div>
 					</div>
@@ -311,6 +314,18 @@
 	function refreshView () {
 		if (competition && competition.training) $('.training-data').show()
 			else $('.training-data').hide()
+		$('#RegistryForm_edit_competition_btn').prop('disabled', !$('#RegistryForm #id').val() || !registry || !registry.competition)
+	}
+
+	function registrySaved(data) {
+		registry = data;
+		refreshView();
+	}
+
+	function editRegistryCompetition() {
+		if (!$('#RegistryForm #id').val() || !registry || !registry.competition) return;
+		const eventId = registry.competition._id || registry.competition.id || registry.competition;
+		core.goTo('/management/competition/' + encodeURIComponent(eventId));
 	}
 
 	function localFormParse(values) {
@@ -340,6 +355,7 @@
 		$('#EntryTotalTime').val('')
 		$('#id').val('')
 		$('#skater').val('').trigger('change')
+		refreshView();
 	}
 
 	$('#competition').on('change', function() {

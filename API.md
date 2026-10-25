@@ -119,6 +119,14 @@ filas, incluidas referencias absolutas y desde otras hojas. Se conservan las
 referencias a filas anteriores y a otras hojas. Se solicita recalculo al abrir.
 Esta proteccion es compartida por hielo y ruedas.
 
+## Acceso al evento desde un registro
+
+El formulario de registro incluye `Editar evento`, en naranja, entre `Nuevo` e
+`Introducir tiempos`. Abre el evento asociado al registro guardado. Permanece
+desactivado para registros nuevos o sin evento; se habilita tras guardar y vuelve
+a desactivarse con `Guardar y nuevo`. Un cambio de evento aun sin guardar no
+modifica el destino del boton.
+
 ## Nacionalidad historica de las marcas
 
 `Registry.country` guarda la nacionalidad del deportista al realizar esa marca,

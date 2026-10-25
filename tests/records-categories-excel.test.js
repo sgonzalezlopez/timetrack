@@ -53,7 +53,7 @@ test('never generates an empty replacement when no received marks qualify for an
         [record('MA1', 40000, { country: undefined })],
         [record('MA1', 40000, { country: 'FR' })],
         [record('MA1', 40000, { competition: { training: true } })],
-        [record('MA1', 40000, { distance: 2500 })],
+        [record('MA1', 40000, { distance: 0 })],
         [record('MA1', 40000, { skater: { fullname: 'Mixed', gender: 'X' } })]
     ]) {
         await assert.rejects(update(records), { message: 'RECORDS_CATEGORIES_EMPTY' })
@@ -93,14 +93,52 @@ test('classifies exact A/B/C groups, all youth and numeric master codes', () => 
     ]) assert.equal(categoryGroup(code), group)
 })
 
-test('unrepresented mixed and other-distance results do not block category updates', async () => {
+test('unrepresented mixed and nonpositive-distance results do not block category updates', async () => {
     const { sheet } = await update([
         record('MA2', 40000),
         record('MSA', 0, { date: null, distance: 2500,
             skater: { fullname: 'Mixed relay', country: 'ES', gender: 'X' } }),
-        record('MA2', 0, { date: null, distance: 10000 })
+        record('MA2', 0, { date: null, distance: 0 })
     ])
     assert.equal(block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M').time, 40000)
+})
+
+test('adds missing distances using historical MB1 category rather than the current MB2 profile', async () => {
+    const records = [
+        record('MB1', 446230, {
+            date: '2026-03-14', distance: 5000, country: 'ES',
+            skater: { _id: 'raul', fullname: 'Raul Jardin Barba', gender: 'M', currentcategory: 'MB2' }
+        }),
+        record('MA1', 430000, {
+            distance: 5000, skater: { fullname: 'Junior A faster', gender: 'M', currentcategory: 'MB2' }
+        }),
+        record('LB1', 480000, { distance: 5000 }),
+        record('MB1', 420000, { distance: 5000, country: 'FR' }),
+        record('MB1', 410000, { distance: 5000, competition: { training: true } }),
+        record('M30', 900000, { distance: 10000 })
+    ]
+    const { sheet, updated } = await update(records)
+    const juniorB = block(sheet, 'JÚNIOR B')
+    const male = juniorB.find(r => r.label === '5000M, M')
+    assert.equal(male.name, 'Raul Jardin Barba')
+    assert.equal(male.category, 'MB1')
+    assert.equal(male.time, '7:26.230')
+    assert.equal(juniorB.find(r => r.label === '5000M, F').category, 'LB1')
+    assert.equal(block(sheet, 'JÚNIOR').find(r => r.label === '5000M, M').name, 'Junior A faster')
+    assert.equal(block(sheet, 'JÚNIOR C').some(r => r.label.startsWith('5000M')), false)
+    assert.equal(block(sheet, 'MÁSTER').find(r => r.label === '10000M, M').time, '15:00.000')
+    const again = await update(records, {}, updated)
+    assert.equal(block(again.sheet, 'JÚNIOR B').filter(r => r.label === '5000M, M').length, 1)
+    assert.equal(block(again.sheet, 'JÚNIOR B').find(r => r.label === '5000M, M').time, '7:26.230')
+})
+
+test('invalid marks for newly discovered distances cancel the update with a detailed report', async () => {
+    await assert.rejects(update([record('MB1', 0, { distance: 5000, date: null })]), error => {
+        assert.equal(error.message, 'RECORDS_EXCEL_DATA')
+        assert.equal(error.issues.length, 1)
+        assert.equal(error.issues[0].distance, 5000)
+        return true
+    })
 })
 
 test('supports X slots explicitly present in the category template', async () => {

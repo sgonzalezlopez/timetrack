@@ -94,10 +94,13 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
     }
     const issues = new Map()
     for (const block of blocks) {
-        for (const gender of ['M', 'F']) {
-            if (!block.slots.some(s => s.distance === 100 && s.gender === gender) &&
-                eligible.some(r => r.distance === 100 && r.skater.gender === gender && qualifies(r, block.group))) {
-                block.slots.push({ distance: 100, gender })
+        for (const record of eligible) {
+            const { distance } = record
+            const gender = record.skater.gender
+            if (Number.isFinite(distance) && distance > 0 && ['M', 'F'].includes(gender) &&
+                qualifies(record, block.group) &&
+                !block.slots.some(s => s.distance === distance && s.gender === gender)) {
+                block.slots.push({ distance, gender })
             }
         }
         block.slots.sort((a, b) => a.distance - b.distance || 'MFX'.indexOf(a.gender) - 'MFX'.indexOf(b.gender))

@@ -69,15 +69,18 @@ function externalHarness() {
     }))
     const model = { find: filter => {
         queries.push(filter)
+        const results = () => raw.filter(item => !filter.country || filter.country.$in.includes(item.country))
+            .map(item => ({ ...item, toObject: () => ({ ...item }) }))
         const chain = {
             select: fields => { selections.push(fields); return chain },
             populate: spec => { populations.push(spec); return chain },
             sort: () => chain,
-            then: callback => Promise.resolve(callback(raw.filter(item => !filter.country || filter.country.$in.includes(item.country))
-                .map(item => ({ ...item, toObject: () => ({ ...item }) }))))
+            skip: () => chain, limit: () => chain, maxTimeMS: () => chain,
+            cursor: () => (async function* () { yield* results() })(),
+            then: callback => Promise.resolve(results()).then(callback)
         }
         return chain
-    } }
+    }, countDocuments: filter => ({ maxTimeMS: async () => raw.filter(item => !filter.country || filter.country.$in.includes(item.country)).length }) }
     const exports = {}
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'controllers', 'external-api.controller.js'), 'utf8'), {
         exports, require: name => name === 'mongoose' ? { isValidObjectId: () => true } :

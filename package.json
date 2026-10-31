@@ -4,7 +4,7 @@
   "description": "Aplicación de gestión de tiempos",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@tidyjs/tidy": "^2.6.1",
@@ -18,5 +18,11 @@
     "saxes": "^5.0.1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "express": "^4.22.3",
+    "moment": "^2.31.0",
+    "mongodb-memory-server": "^10.4.3",
+    "mongoose": "^8.24.7"
+  }
 }

@@ -82,7 +82,7 @@ function syncModuleLocales() {
 module.exports.run = async function run(opts) {
   var options = {...default_options, ...opts}
   syncModuleLocales()
-  app = await core.setup({deserializeUser : function(id, done) {
+  let app = await core.setup({deserializeUser : function(id, done) {
     Users.findOne({ _id: id })
       .then(async user => {
         if (!user || user == null) return done(new Error(i18n.__('Invalid session user')))
@@ -99,7 +99,7 @@ module.exports.run = async function run(opts) {
           }
           
           return done(null, user)
-      })
+      }).catch(done)
   }})
   
   options.staticPaths.forEach(element => {
@@ -114,19 +114,6 @@ module.exports.run = async function run(opts) {
   app.use('/chart', express.static(path.join(__modulesPath, '/chart.js')));
   app.use('/moment', express.static(path.join(__modulesPath, '/moment')));
   app = core.configureStatic(app)
-  app.use(function (req, res, next) {
-    const requestPath = req.path || req.originalUrl;
-    const staticRelativePath = requestPath.replace(/^\/+/, '');
-
-    if (requestPath.split('.').length > 1) {
-      for (let i = 0; i < options.staticPaths.length; i++) {
-        const element = options.staticPaths[i];
-        if (fs.existsSync(path.join(element, staticRelativePath))) return next();        
-      }
-      throw new Error('Not found: ' +  requestPath);
-    }
-    return next();
-  });
 
   app.set('views', [path.join(__dirname, '/views'), path.join(__corePath, '/views')]);
   app.locals.registryImportFormats = options.registryImportFormats || []
@@ -139,6 +126,7 @@ module.exports.run = async function run(opts) {
   app.use('/api', require('./api/routes'))
   app.use('/', require('./views-routes/routes'));
   app = core.configureRoutes(app)
+  app.use(require('./middlewares/missing-static'))
 
 
   app = core.configureErrorHandling(app)

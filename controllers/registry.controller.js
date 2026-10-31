@@ -7,9 +7,9 @@ const i18n = require(path.join(__corePath, "/i18n/i18n.config"));
 const { normalizeCountry, countryFilter } = require('../utils/registry-country')
 
 
-exports.getAll = (req, res) => {
+exports.getAll = async (req, res, next) => {
     try {
-        Model.find(filter.getFilter('Registry', {}, req.user))
+        await Model.find(filter.getFilter('Registry', {}, req.user))
             .populate({ path: 'skater' })
             .populate({ path: 'club' })
             .populate({ path: 'competition', populate: { path: 'track' } })
@@ -18,23 +18,23 @@ exports.getAll = (req, res) => {
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.get = (req, res) => {
+exports.get = async (req, res, next) => {
     try {
-        Model.find(filter.getFilter('Registry', { _id: req.params.id }, req.user))
+        await Model.find(filter.getFilter('Registry', { _id: req.params.id }, req.user))
             .populate({ path: 'skater' })
             .populate({ path: 'club' })
             .populate({ path: 'competition', populate: { path: 'track' } })
             .then(item => {
-                if (item.length == 0) res.send(null)
+                if (item.length == 0) return res.send(null)
                 res.send(item[0])
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
@@ -60,19 +60,19 @@ exports.update = async (req, res, next) => {
     }
 }
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res, next) => {
     try {
-        Model.deleteOne(filter.getFilter('Registry', { _id: req.params.id }, req.user))
+        await Model.deleteOne(filter.getFilter('Registry', { _id: req.params.id }, req.user))
             .then(item => {
                 res.send({ message: 'OK' })
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.find = (req, res) => {
+exports.find = async (req, res, next) => {
     try {
         for (const key in req.body) {
             if (Object.hasOwnProperty.call(req.body, key)) {
@@ -91,7 +91,7 @@ exports.find = (req, res) => {
         if (req.body.gender) skaterPopulate.match.gender = { $eq: req.body.gender }
         if (req.body.country) req.body.country = countryFilter(req.body.country)
 
-        Model.find(filter.getFilter('Registry', parseBody(req.body), req.user))
+        await Model.find(filter.getFilter('Registry', parseBody(req.body), req.user))
             .populate(skaterPopulate)
             .populate({ path: 'club' })
             .populate(competitionPopulate)
@@ -104,7 +104,7 @@ exports.find = (req, res) => {
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
@@ -343,12 +343,12 @@ exports.mergeRaceSummaries = async (req, res) => {
 
 
 function getBestRecords(data, ntop, bestForSkater) {
-    result = [];
+    let result = [];
     if (data && data.length > 0 && data[0].hasOwnProperty('_doc')) {
         if (ntop == '*') ntop = data.length
         if (bestForSkater == 'true') {
-            groupedBySkater = tidy(data, arrange('totalTime'), groupBy('skaterId', [], groupBy.entries()))
-            d = getBestRecords(groupedBySkater, 1, 'false')
+            const groupedBySkater = tidy(data, arrange('totalTime'), groupBy('skaterId', [], groupBy.entries()))
+            const d = getBestRecords(groupedBySkater, 1, 'false')
             d.map((a, index) => { a.position = index + 1})
             return d.slice(0, ntop)
 
@@ -512,7 +512,7 @@ function getMultipleRaceSummaryFilter(identities, user) {
 }
 
 function getElements(races, n) {
-    result = [];
+    let result = [];
     races.forEach(race => {
         var nBest = race[1].sort((a, b) => a.totalTime - b.totalTime).slice(0, n).map((a, index) => {
             a._doc.totalTime = a._doc.times.reduce((p, b) => p + b, 0)

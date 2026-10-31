@@ -95,6 +95,7 @@ RegistrySchema.pre('validate', async function () {
 });
 RegistrySchema.index({ skater: 1, date: 1 });
 RegistrySchema.index({ competition: 1 });
+RegistrySchema.index({ date: -1, _id: -1 });
 RegistrySchema.index({ club: 1 });
 RegistrySchema.index({ source: 1, externalReference: 1 }, {
     unique: true,

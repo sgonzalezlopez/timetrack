@@ -294,7 +294,10 @@ prueba normalizada, distancia, evento y tiempo total (suma exacta de parciales),
 incluso sin fuente/referencia y entre filas del mismo fichero.
 Si hay coincidencias, commit responde 409 con `code: IMPORT_DUPLICATE_REVIEW` y `conflicts`.
 La interfaz compara nuevo/existente (fecha, prueba, distancia, total, parciales,
-categoria, carril, salida, fuente y referencia) y pide una decision sin opcion preseleccionada.
+categoria, carril, salida, fuente y referencia) y selecciona `skip` por defecto.
+Las filas detectadas como duplicadas tambien quedan en `skip`, aunque el patinador
+se haya identificado automaticamente. El usuario puede elegir expresamente reemplazar
+o conservar ambas cuando este permitido.
 Se vuelve a confirmar con `duplicateReviewToken`, `duplicateAction` (`skip`, `replace`, `keep`)
 y `duplicateId` para sobrescribir. No se escribe ninguna fila hasta resolver todos los conflictos.
 Sobrescribir exige permiso U y un registro accesible del mismo evento. Guardar ambos

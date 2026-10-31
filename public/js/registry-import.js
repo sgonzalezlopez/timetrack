@@ -90,6 +90,7 @@
             const action = select([['', text('IMPORT_SELECT')], ['skip', text('IMPORT_SKIP')],
                 ...(conflict.replaceable.length ? [['replace', text('IMPORT_REPLACE')]] : []),
                 ...(conflict.canKeep ? [['keep', text('IMPORT_KEEP_DISTINCT')]] : [])], text('IMPORT_DUPLICATE_DECISION'));
+            action.val('skip');
             const existing = select(conflict.replaceable.map(id => [id, id]), text('IMPORT_EXISTING')).prop('hidden', true);
             action.on('change', () => existing.prop('hidden', action.val() !== 'replace'));
             duplicateSelectors.set(conflict.index, { action, existing, token: conflict.token, section });
@@ -163,7 +164,7 @@
                 if (row.duplicateId) actionOptions.push(['replace', text('IMPORT_REPLACE')]);
             }
             const action = select(actionOptions, text('IMPORT_SAVE'));
-            if (!row.issue && (!row.duplicate || row.duplicateId) &&
+            if (!row.issue && !row.duplicate &&
                 (row.automaticSkater || !row.candidates.length && result.createSkaters)) action.val('import');
             const skaters = select([['', text('IMPORT_SELECT')],
                 ...row.candidates.map(c => [c.id, `${c.name} | ${c.birthDate ? c.birthDate.slice(0, 10) : '—'} | ${c.category || '—'}`]),

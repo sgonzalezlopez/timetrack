@@ -13,6 +13,7 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
     function element(key) {
         if (!elements.has(key)) {
             const props = {}
+            const optionValues = []
             const node = {
                 scrollIntoView() { props.scrolled = true },
                 focus() { props.focused = true }
@@ -24,13 +25,21 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
                 attr(name, value) { props[name] = value; return e },
                 val(value) { if (value !== undefined) { props.value = value; return e }
                     if (Object.hasOwn(props, 'value')) return props.value
+                    if (optionValues.length) return optionValues[0]
                     return key === 'action' ? action : key === 'skater' ? 'skater-1' :
                     key === 'category' ? category : key === '#RegistryImportUpdateCategories' ? updateSkaterCategory : '' },
-                append(...children) { (props.children ||= []).push(...children); return e },
+                append(...children) {
+                    (props.children ||= []).push(...children)
+                    for (const child of children) if (child.props && Object.hasOwn(child.props, 'value')) {
+                        optionValues.push(child.props.value)
+                    }
+                    return e
+                },
                 empty() { props.children = []; return e },
                 data(name) { return props[name] },
                 select2(options) { props.select2 = options; props.select2Calls = (props.select2Calls || 0) + 1; return e },
                 on(event, callback) { props[event] = callback; return e },
+                optionValues,
                 trigger(event) { props.triggered = event; if (props[event]) props[event](); return e }
             }
             elements.set(key, e)
@@ -75,10 +84,14 @@ function harness({ category = 'LA2', action = 'import', serverError = false, reg
         ${renderPreview ? `review(${JSON.stringify(renderPreview)});` : ''}
         testState.controls = rowSelectors;
         testState.populateClubs = populateClubs;
+        testState.reviewDuplicates = reviewDuplicates;
+        testState.duplicateSelectors = duplicateSelectors;
     }());`), context)
     return { elements, requests: () => requests, lastRequest: () => lastRequest,
         controls: () => testState.controls,
         populateClubs: clubs => testState.populateClubs(clubs),
+        reviewDuplicates: conflicts => testState.reviewDuplicates(conflicts),
+        duplicateSelectors: () => testState.duplicateSelectors,
         control: element,
         submit: () => handlers.get('#RegistryImportForm').call({}, { preventDefault() {} }),
         changeOptions: () => handlers.get([...handlers.keys()].find(key => key.startsWith('#RegistryImportCategorySource')))(),
@@ -152,6 +165,28 @@ test('duplicate comparisons require an explicit decision and send its review tok
     assert.equal(choice.duplicateReviewToken, 'review-token')
     assert.equal(choice.duplicateAction, 'replace')
     assert.equal(choice.duplicateId, 'existing')
+})
+
+test('duplicate comparison actions default to skip and retain explicit replace and keep options', () => {
+    const h = harness()
+    h.reviewDuplicates([{
+        index: 0, row: 2, incoming: { name: 'Ona' }, existing: [{ id: 'existing', name: 'Ona' }],
+        replaceable: ['existing'], canKeep: true, token: 'token'
+    }])
+    const decision = h.duplicateSelectors().get(0).action
+    assert.equal(decision.val(), 'skip')
+    assert.deepEqual(decision.optionValues, ['', 'skip', 'replace', 'keep'])
+})
+
+test('possible duplicate rows default to skip despite automatic skater matching', async () => {
+    const data = reviewData()
+    data.rows[0].duplicate = true
+    data.rows[0].duplicateId = 'existing'
+    const h = harness({ renderPreview: data })
+    const action = [...h.elements.values()].find(e => e.optionValues &&
+        e.optionValues.includes('import') && e.optionValues.includes('replace'))
+    assert.ok(action)
+    assert.equal(action.val(), 'skip')
 })
 
 test('category differences block confirmation until the profile update question is answered', async () => {

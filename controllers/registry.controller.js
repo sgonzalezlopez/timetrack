@@ -51,7 +51,7 @@ exports.create = async (req, res, next) => {
 exports.update = async (req, res, next) => {
     try {
         const item = await Model.findOneAndUpdate(filter.getFilter('Registry', { _id: req.params.id }, req.user),
-            parseBody(req.body), {new: true, runValidators: true})
+            parseBody(req.body), {returnDocument: 'after', runValidators: true})
         if (item) res.send(item)
         else res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
     } catch (err) {

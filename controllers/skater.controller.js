@@ -43,7 +43,7 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
     try {
-        await Model.findOneAndUpdate(filter.getFilter('Skater', {_id : req.params.id}, req.user), parseBody(req.body), {new: true})
+        await Model.findOneAndUpdate(filter.getFilter('Skater', {_id : req.params.id}, req.user), parseBody(req.body), {returnDocument: 'after'})
         .then(item => {
             if (item) res.send(item)
             else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})
@@ -57,7 +57,7 @@ exports.update = async (req, res, next) => {
 exports.updateMany = async (req, res, next) => {
     try {
         if (req.body.filter == null || req.body.filter == '' || req.body.filter == {}) return res.status(400).send({message: res.__('ITEM_NOT_FOUND')})
-        await Model.updateMany(req.body.filter, parseBody(req.body.update), {new: true})
+        await Model.updateMany(req.body.filter, parseBody(req.body.update))
         .then(item => {
             if (item) res.send(item)
             else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})

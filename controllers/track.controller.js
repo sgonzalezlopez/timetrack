@@ -46,7 +46,7 @@ exports.update = async (req, res, next) => {
         const oldItem = await Model.findOne({ _id: req.params.id })
         if (!oldItem) return res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
         const oldLocation = oldItem.location
-        const item = await Model.findOneAndUpdate({ _id: req.params.id }, parseBody(req.body), { new: true })
+        const item = await Model.findOneAndUpdate({ _id: req.params.id }, parseBody(req.body), { returnDocument: 'after' })
         if (!item) return res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
         if (req.body.lat && req.body.lng) {
             const response = await fetch(`https://eu1.locationiq.com/v1/reverse?key=pk.e614e6e48bc2e93a31d3994d7ea9f383&lat=${req.body.lat}&lon=${req.body.lng}&format=json`)

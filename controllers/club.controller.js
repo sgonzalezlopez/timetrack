@@ -40,7 +40,7 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
     try {
-        await Model.findOneAndUpdate(filter.getFilter('Club', {_id : req.params.id}, req.user), parseBody(req.body), {new: true})
+        await Model.findOneAndUpdate(filter.getFilter('Club', {_id : req.params.id}, req.user), parseBody(req.body), {returnDocument: 'after'})
         .then(item => {
             if (item) res.send(item)
             else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})

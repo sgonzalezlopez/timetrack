@@ -23,6 +23,12 @@
     "express": "^4.22.3",
     "moment": "^2.31.0",
     "mongodb-memory-server": "^10.4.3",
-    "mongoose": "^8.24.7"
+    "mongoose": "^9.11.4"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "peerDependencies": {
+    "mongoose": "^9.11.4"
   }
 }

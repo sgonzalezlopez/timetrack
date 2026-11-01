@@ -345,7 +345,7 @@ exports.commit = async (req, res, next) => {
                         const result = await Track.findOneAndUpdate(
                             { importName: normalize(p.row.trackName) },
                             { $setOnInsert: { name: p.row.trackName, location: p.row.trackLocation || '' } },
-                            { upsert: true, new: true, runValidators: true, rawResult: true })
+                            { upsert: true, returnDocument: 'after', runValidators: true, includeResultMetadata: true })
                         const track = result.value
                         trackId = String(track._id)
                         tracks.push(track)
@@ -360,7 +360,7 @@ exports.commit = async (req, res, next) => {
                             track: trackId, season: destination.season, training: false
                         }, { $setOnInsert: {
                             name: destination.name, date: resolvedRow.date
-                        } }, { upsert: true, new: true, runValidators: true, rawResult: true })
+                        } }, { upsert: true, returnDocument: 'after', runValidators: true, includeResultMetadata: true })
                         const competition = result.value
                         competitionId = String(competition._id)
                         competitions.push(competition)
@@ -382,7 +382,7 @@ exports.commit = async (req, res, next) => {
                 if (!clubId) {
                     const result = await Club.findOneAndUpdate({ name: plan.clubResolution.name },
                         { $setOnInsert: { name: plan.clubResolution.name } },
-                        { upsert: true, new: true, runValidators: true, rawResult: true })
+                        { upsert: true, returnDocument: 'after', runValidators: true, includeResultMetadata: true })
                     clubId = String(result.value._id)
                     newClubs.set(normalize(plan.clubResolution.name), clubId)
                     if (!result.lastErrorObject.updatedExisting) report.createdClubs.push({
@@ -411,7 +411,7 @@ exports.commit = async (req, res, next) => {
                     if (!await Skater.exists(skaterQuery)) throw new Error('IMPORT_ACCESS_CHANGED')
                     if (plan.updateCategory && !report.updatedSkaters.some(s => s.id === skaterId)) {
                         const updated = await Skater.findOneAndUpdate(skaterQuery,
-                            { $set: { currentcategory: category } }, { new: true, runValidators: true })
+                            { $set: { currentcategory: category } }, { returnDocument: 'after', runValidators: true })
                         if (!updated) throw new Error('IMPORT_ACCESS_CHANGED')
                         report.updatedSkaters.push({ ...item, id: skaterId, category })
                     }
@@ -426,7 +426,7 @@ exports.commit = async (req, res, next) => {
                 if (plan.replaceId) {
                     const updated = await Registry.findOneAndUpdate(
                         filter.getFilter('Registry', { _id: plan.replaceId, competition: competitionId }, req.user),
-                        { $set: values }, { new: true, runValidators: true })
+                        { $set: values }, { returnDocument: 'after', runValidators: true })
                     if (!updated) throw new Error('IMPORT_ACCESS_CHANGED')
                     saved = updated
                 } else saved = await Registry.create(values)

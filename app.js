@@ -45,7 +45,7 @@ async function syncModuleApplications() {
     await Apps.findOneAndUpdate(
       { link: payload.link },
       payload,
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     )
   }
 }

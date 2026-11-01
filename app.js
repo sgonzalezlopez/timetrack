@@ -82,7 +82,11 @@ function syncModuleLocales() {
 module.exports.run = async function run(opts) {
   var options = {...default_options, ...opts}
   syncModuleLocales()
-  let app = await core.setup({deserializeUser : function(id, done) {
+  let app = await core.setup({
+    configureServiceRoutes(app) {
+      app.use('/api/v1', require('./api/external.route'))
+    },
+    deserializeUser : function(id, done) {
     Users.findOne({ _id: id })
       .then(async user => {
         if (!user || user == null) return done(new Error(i18n.__('Invalid session user')))
@@ -122,7 +126,6 @@ module.exports.run = async function run(opts) {
     throw new Error('registryImportSeasonStartMonth must be an integer between 1 and 12')
   }
   app.locals.registryImportSeasonStartMonth = seasonStartMonth
-  app.use('/api/v1', require('./api/external.route'))
   app.use('/api', require('./api/routes'))
   app.use('/', require('./views-routes/routes'));
   app = core.configureRoutes(app)

@@ -3,9 +3,9 @@ const filter = require('../middlewares/data.filter')
 const registry = require('../models/registry.model')
 const mongoose = require('mongoose')
 
-exports.getAll = (req, res) => {
+exports.getAll = async (req, res, next) => {
     try {
-        Model.find(filter.getFilter('TrainingSession', {}, req.user))
+        await Model.find(filter.getFilter('TrainingSession', {}, req.user))
         .populate('skaters')
         .populate({path : 'competition', populate : { path : 'track'}})
         .then(items => {
@@ -13,70 +13,70 @@ exports.getAll = (req, res) => {
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
     
-exports.get = (req, res) => {
+exports.get = async (req, res, next) => {
     try {
-        Model.find(filter.getFilter('TrainingSession', {_id:req.params.id}, req.user))
+        await Model.find(filter.getFilter('TrainingSession', {_id:req.params.id}, req.user))
         .populate('skaters')
         .populate({path : 'competition', populate : { path : 'track'}})
         .then(item => {
-            if (item.length == 0) res.send(null)
+            if (item.length == 0) return res.send(null)
             res.send(item[0])
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.create = (req, res) => {
+exports.create = async (req, res, next) => {
     try {
-        Model.create(parseBody(req.body))
+        await Model.create(parseBody(req.body))
         .then(item => {
             res.send(item)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.update = (req, res) => {
+exports.update = async (req, res, next) => {
     try {
-        Model.findOneAndUpdate(filter.getFilter('TrainingSession', {_id : req.params.id}, req.user), parseBody(req.body), {new: true})
+        await Model.findOneAndUpdate(filter.getFilter('TrainingSession', {_id : req.params.id}, req.user), parseBody(req.body), {new: true})
         .then(item => {
             if (item) res.send(item)
             else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res, next) => {
     try {
-        Model.deleteOne(filter.getFilter('TrainingSession', {_id : req.params.id}, req.user))
+        await Model.deleteOne(filter.getFilter('TrainingSession', {_id : req.params.id}, req.user))
         .then(item => {
             res.send({message : 'OK'})
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.find = (req, res) => {
+exports.find = async (req, res, next) => {
     try {
         for (const key in req.body) {
             if (Object.hasOwnProperty.call(req.body, key)) {
                 if (req.body[key] == '') delete req.body[key]                
             }
         }
-        Model.find(filter.getFilter('TrainingSession', req.body, req.user))
+        await Model.find(filter.getFilter('TrainingSession', req.body, req.user))
         .populate('skaters')
         .populate({path : 'competition', populate : { path : 'track'}})
         .then(items => {
@@ -84,7 +84,7 @@ exports.find = (req, res) => {
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
@@ -100,24 +100,25 @@ function parseBody(body) {
 }
 
 exports.getInputs = async (req, res, next) => {
-    var ts = await Model.findById(req.params.id)
-    .populate('skaters')
-    .populate({path : 'competition', populate : { path : 'track'}});
-    if (!ts || !ts.competition) return next(new Error(res.__('ITEM_NOT_FOUND')), null)
-    
-    var f = {competition : ts.competition, race : ts.race, trainingHeat : req.params.heat}
+    try {
+        const ts = await Model.findById(req.params.id)
+            .populate('skaters')
+            .populate({path : 'competition', populate : { path : 'track'}})
+        if (!ts || !ts.competition) return next(new Error(res.__('ITEM_NOT_FOUND')))
 
-    var existing = await registry.find(f).populate('skater')
-    var existingSkaters = existing.map(x => x.skater.id)
-    var pending = ts.skaters.filter(s => !existingSkaters.includes(s.id));
+        const f = {competition : ts.competition, race : ts.race, trainingHeat : req.params.heat}
+        const existing = await registry.find(f).populate('skater')
+        const existingSkaters = existing.map(x => x.skater.id)
+        const pending = ts.skaters.filter(s => !existingSkaters.includes(s.id))
+        const timesNumber = Math.ceil(ts.distance / parseInt(ts.competition.track.distance) * ts.partialsPerLap)
 
-    var timesNumber = Math.ceil(ts.distance / parseInt(ts.competition.track.distance) * ts.partialsPerLap);
-
-    pending.forEach(element => {
-        existing.push({skater:element, times : Array(timesNumber), totalTime : 0})
-    });
-
-    res.send(existing)
+        pending.forEach(element => {
+            existing.push({skater:element, times : Array(timesNumber), totalTime : 0})
+        })
+        res.send(existing)
+    } catch (err) {
+        next(err)
+    }
 }
 
 exports.getSkaterInputs = async (req, res, next) => {
@@ -149,16 +150,23 @@ exports.getSkaterInputs = async (req, res, next) => {
 
 
 exports.getRegistries = async (req, res, next) => {
-    var ts = await Model.findById(req.params.id);
-    if (!ts || !ts.competition) return next(new Error(res.__('ITEM_NOT_FOUND')), null)
-    
-    req.body = {competition : ts.competition, race : ts.race}
-    require('./registry.controller').find(req, res);
+    try {
+        const ts = await Model.findById(req.params.id)
+        if (!ts || !ts.competition) return next(new Error(res.__('ITEM_NOT_FOUND')))
+        req.body = { competition: ts.competition, race: ts.race }
+        await require('./registry.controller').find(req, res, next)
+    } catch (err) {
+        next(err)
+    }
 }
 
-exports.deleteRegistry = (req, res) => {
-    req.params.id = req.params.reg;
-    require('./registry.controller').delete(req, res);
+exports.deleteRegistry = async (req, res, next) => {
+    try {
+        req.params.id = req.params.reg
+        await require('./registry.controller').delete(req, res, next)
+    } catch (err) {
+        next(err)
+    }
 }
 
 exports.getObject = async function(id, user) {

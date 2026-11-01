@@ -1,119 +1,99 @@
 const Model = require("../models/track.model");
 const geocoder = require("../utils/geocoder")
 
-exports.getAll = (req, res) => {
+exports.getAll = async (req, res, next) => {
     try {
-        Model.find()
+        await Model.find()
             .then(items => {
                 res.send(items)
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.get = (req, res) => {
+exports.get = async (req, res, next) => {
     try {
-        Model.findById(req.params.id)
+        await Model.findById(req.params.id)
             .then(item => {
                 res.send(item)
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.create = async (req, res) => {
+exports.create = async (req, res, next) => {
     try {
         if (!req.body.hasOwnProperty("geolocation") && req.body.hasOwnProperty('location')) {
             var geolocation = await geocoder.geocode(req.body.location);
             req.body.geolocation = geolocation[0];
         }
-        Model.create(parseBody(req.body))
+        await Model.create(parseBody(req.body))
             .then(item => {
                 res.send(item)
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.update = async (req, res) => {
+exports.update = async (req, res, next) => {
     try {
-        olditem = await Model.findOne({ _id: req.params.id });
-
-        if (!olditem) return res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
-        var oldLocation = olditem.location;
-
-        Model.findOneAndUpdate({ _id: req.params.id }, parseBody(req.body), { new: true })
-            .then(async item => {
-                try {
-                    if (req.body.lat && req.body.lng) {
-                        // const resp = await geocoder.reverse({ lat: 45.767, lon: 4.833 });
-                        // var location = await geocoder.reverse({ lat : parseFloat(req.body.lat), lon : parseFloat(req.body.lng)})
-                        var resp = await fetch(`https://eu1.locationiq.com/v1/reverse?key=pk.e614e6e48bc2e93a31d3994d7ea9f383&lat=${req.body.lat}&lon=${req.body.lng}&format=json`)
-                        val = await resp.json();
-                        item.location = val.display_name;
-                        var geolocation = await geocoder.geocode(item.location);
-                        item.geolocation = geolocation[0];
-                        item.geolocation.latitude = req.body.lat
-                        item.geolocation.longitude = req.body.lng
-                        item.save().then(item => {
-                            res.send(item)
-                        })
-
-                    }
-                    else if (oldLocation != req.body.location && req.body.location && !req.body.hasOwnProperty("geolocation")) {
-                        var geolocation = await geocoder.geocode(req.body.location);
-                        item.geolocation = geolocation[0];
-                        item.save().then(item => {
-                            res.send(item)
-                        })
-                    } else {
-                        if (item) res.send(item)
-                        else res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
-                    }
-                }
-                catch (err) {
-                    console.error(err);
-                    res.status(400).send({ message: err })
-                }
-            })
+        const oldItem = await Model.findOne({ _id: req.params.id })
+        if (!oldItem) return res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
+        const oldLocation = oldItem.location
+        const item = await Model.findOneAndUpdate({ _id: req.params.id }, parseBody(req.body), { new: true })
+        if (!item) return res.status(400).send({ message: res.__('ITEM_NOT_FOUND') })
+        if (req.body.lat && req.body.lng) {
+            const response = await fetch(`https://eu1.locationiq.com/v1/reverse?key=pk.e614e6e48bc2e93a31d3994d7ea9f383&lat=${req.body.lat}&lon=${req.body.lng}&format=json`)
+            const value = await response.json()
+            item.location = value.display_name
+            const geolocation = await geocoder.geocode(item.location)
+            item.geolocation = geolocation[0]
+            item.geolocation.latitude = req.body.lat
+            item.geolocation.longitude = req.body.lng
+            await item.save()
+        } else if (oldLocation != req.body.location && req.body.location && !req.body.hasOwnProperty('geolocation')) {
+            const geolocation = await geocoder.geocode(req.body.location)
+            item.geolocation = geolocation[0]
+            await item.save()
+        }
+        res.send(item)
     } catch (err) {
-        console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res, next) => {
     try {
-        Model.deleteOne({ _id: req.params.id })
+        await Model.deleteOne({ _id: req.params.id })
             .then(item => {
                 res.send({ message: 'OK' })
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.find = (req, res) => {
+exports.find = async (req, res, next) => {
     try {
         for (const key in req.body) {
             if (Object.hasOwnProperty.call(req.body, key)) {
                 if (req.body[key] == '') delete req.body[key]
             }
         }
-        Model.find(req.body)
+        await Model.find(req.body)
             .then(items => {
                 res.send(items)
             })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
@@ -128,17 +108,23 @@ function parseBody(body) {
     return values;
 }
 
-exports.getRegistries = (req, res) => {
-    require('../models/competition.model').find({ track: req.params.id })
-        .then(items => {
-            req.body = { competition: { $in: items.map(i => i._id) } };
-            require('./registry.controller').find(req, res);
-        })
+exports.getRegistries = async (req, res, next) => {
+    try {
+        const competitions = await require('../models/competition.model').find({ track: req.params.id })
+        req.body = { competition: { $in: competitions.map(item => item._id) } }
+        await require('./registry.controller').find(req, res, next)
+    } catch (err) {
+        next(err)
+    }
 }
 
-exports.deleteRegistry = (req, res) => {
-    req.params.id = req.params.reg;
-    require('./registry.controller').delete(req, res);
+exports.deleteRegistry = async (req, res, next) => {
+    try {
+        req.params.id = req.params.reg
+        await require('./registry.controller').delete(req, res, next)
+    } catch (err) {
+        next(err)
+    }
 }
 
 exports.getObject = async function (id, user) {

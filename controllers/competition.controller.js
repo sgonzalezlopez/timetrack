@@ -1,84 +1,84 @@
 const Model = require("../models/competition.model");
 const filter = require('../middlewares/data.filter')
 
-exports.getAll = (req, res) => {
+exports.getAll = async (req, res, next) => {
     try {
-        Model.find()
+        await Model.find()
         .populate('track')
         .then(items => {
             res.send(items)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
     
-exports.get = (req, res) => {
+exports.get = async (req, res, next) => {
     try {
-        Model.findById(req.params.id)
+        await Model.findById(req.params.id)
         .populate('track')
         .then(item => {
             res.send(item)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.create = (req, res) => {
+exports.create = async (req, res, next) => {
     try {
-        Model.create(parseBody(req.body))
+        await Model.create(parseBody(req.body))
         .then(item => {
             res.send(item)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.update = (req, res) => {
+exports.update = async (req, res, next) => {
     try {
-        Model.findOneAndUpdate({_id:req.params.id}, parseBody(req.body), {new: true})
+        await Model.findOneAndUpdate({_id:req.params.id}, parseBody(req.body), {new: true})
         .then(item => {
             if (item) res.send(item)
             else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res, next) => {
     try {
-        Model.deleteOne({_id:req.params.id})
+        await Model.deleteOne({_id:req.params.id})
         .then(item => {
             res.send({message : 'OK'})
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.find = (req, res) => {
+exports.find = async (req, res, next) => {
     try {
         for (const key in req.body) {
             if (Object.hasOwnProperty.call(req.body, key)) {
                 if (req.body[key] == '') delete req.body[key]                
             }
         }
-        Model.find(req.body)
+        await Model.find(req.body)
         .populate('track')
         .then(items => {
             res.send(items)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
@@ -93,14 +93,22 @@ function parseBody(body) {
     return values;
 }
 
-exports.getRegistries = (req, res) => {
-    req.body = {competition : req.params.id}
-    require('./registry.controller').find(req, res);
+exports.getRegistries = async (req, res, next) => {
+    try {
+        req.body = { competition: req.params.id }
+        await require('./registry.controller').find(req, res, next)
+    } catch (err) {
+        next(err)
+    }
 }
 
-exports.deleteRegistry = (req, res) => {
-    req.params.id = req.params.reg;
-    require('./registry.controller').delete(req, res);
+exports.deleteRegistry = async (req, res, next) => {
+    try {
+        req.params.id = req.params.reg
+        await require('./registry.controller').delete(req, res, next)
+    } catch (err) {
+        next(err)
+    }
 }
 
 exports.getObject = async function(id, user) {

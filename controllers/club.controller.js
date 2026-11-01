@@ -1,82 +1,82 @@
 const Model = require("../models/club.model");
 const filter = require('../middlewares/data.filter')
 
-exports.getAll = (req, res) => {
+exports.getAll = async (req, res, next) => {
     try {
-        Model.find(filter.getFilter('Club', {}, req.user))
+        await Model.find(filter.getFilter('Club', {}, req.user))
         .then(items => {
             res.send(items)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
     
-exports.get = (req, res) => {
+exports.get = async (req, res, next) => {
     try {
-        Model.find(filter.getFilter('Club', {_id : req.params.id}, req.user))
+        await Model.find(filter.getFilter('Club', {_id : req.params.id}, req.user))
         .then(item => {
-            if (item.length == 0) res.send(null)
+            if (item.length == 0) return res.send(null)
             res.send(item[0])
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.create = (req, res) => {
+exports.create = async (req, res, next) => {
     try {
-        Model.create(parseBody(req.body))
+        await Model.create(parseBody(req.body))
         .then(item => {
             res.send(item)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.update = (req, res) => {
+exports.update = async (req, res, next) => {
     try {
-        Model.findOneAndUpdate(filter.getFilter('Club', {_id : req.params.id}, req.user), parseBody(req.body), {new: true})
+        await Model.findOneAndUpdate(filter.getFilter('Club', {_id : req.params.id}, req.user), parseBody(req.body), {new: true})
         .then(item => {
             if (item) res.send(item)
             else res.status(400).send({message: res.__('ITEM_NOT_FOUND')})
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.delete = (req, res) => {
+exports.delete = async (req, res, next) => {
     try {
-        Model.deleteOne(filter.getFilter('Club', {_id : req.params.id}, req.user))
+        await Model.deleteOne(filter.getFilter('Club', {_id : req.params.id}, req.user))
         .then(item => {
             res.send({message : 'OK'})
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 
-exports.find = (req, res) => {
+exports.find = async (req, res, next) => {
     try {
         for (const key in req.body) {
             if (Object.hasOwnProperty.call(req.body, key)) {
                 if (req.body[key] == '') delete req.body[key]                
             }
         }
-        Model.find(filter.getFilter('Club', req.body, req.user))
+        await Model.find(filter.getFilter('Club', req.body, req.user))
         .then(items => {
             res.send(items)
         })
     } catch (err) {
         console.error(err);
-        throw err
+        next(err)
     }
 }
 

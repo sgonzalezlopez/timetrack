@@ -204,7 +204,10 @@ Allround y Por Categorias solo escriben el tiempo total. No se inventan parciale
 Actualiza `Allround Historico`, con hombres arriba y mujeres debajo. Primero coloca
 quienes tienen las cuatro distancias, ordenados por la suma en segundos:
 500 + 1000/2 + 1500/3 + 3000/6. Para coincidir con las formulas de la plantilla,
-las marcas se representan con centesimas y se calcula la puntuacion con esa precision.
+las marcas se representan con milisegundos exactos (`m:ss.SSS`, por ejemplo
+`1:15.997`), sin redondear hacia arriba. Las formulas que extraian centesimas del
+formato antiguo se adaptan para extraer minutos, segundos y milisegundos; la
+ordenacion por puntuacion tambien usa esa precision.
 Los incompletos van despues, agrupados por primera distancia disponible en ese orden
 y ordenados por su tiempo en ella. Los empates se desempatan por nombre e ID.
 

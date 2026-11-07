@@ -1,7 +1,7 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const ExcelJS = require('exceljs')
-const { updateAllroundExcel, allroundTime } = require('../utils/records-allround-excel')
+const { updateAllroundExcel, allroundTime, preciseAllroundFormula } = require('../utils/records-allround-excel')
 
 async function fixture() {
     const w = new ExcelJS.Workbook()
@@ -62,7 +62,7 @@ test('orders complete skaters by AR then incomplete by first available distance 
     assert.equal(sheet.getCell('B12').value, 'woman')
     assert.equal(sheet.getCell('A12').value, 1)
     assert.equal(sheet.getCell('C6').value, null)
-    assert.equal(sheet.getCell('D6').value, '1.18,00')
+    assert.equal(sheet.getCell('D6').value, '1:18.000')
 })
 
 test('takes best mark per distance and identity, excludes foreign and training and ignores irrelevant distances', async () => {
@@ -74,8 +74,8 @@ test('takes best mark per distance and identity, excludes foreign and training a
     ])
     assert.equal(count, 1)
     assert.equal(sheet.getCell('B2').value, 'one')
-    assert.equal(sheet.getCell('C2').value, '40,00')
-    assert.equal(sheet.getCell('D2').value, '1.21,00')
+    assert.equal(sheet.getCell('C2').value, '0:40.000')
+    assert.equal(sheet.getCell('D2').value, '1:21.000')
     assert.equal(sheet.getCell('E2').value, null)
 })
 
@@ -88,7 +88,7 @@ test('Allround uses nationality at the time of each distance and excludes unknow
     ]
     const { sheet, count } = await update(records)
     assert.equal(count, 1)
-    assert.equal(sheet.getCell('C2').value, '41,00')
+    assert.equal(sheet.getCell('C2').value, '0:41.000')
     assert.equal(sheet.getCell('D2').value, null)
 })
 test('does not merge distinct skaters with identical names and sums split times', async () => {
@@ -102,8 +102,8 @@ test('does not merge distinct skaters with identical names and sums split times'
     assert.equal(count, 2)
     assert.equal(sheet.getCell('B6').value, 'Same name')
     assert.equal(sheet.getCell('B7').value, 'Same name')
-    assert.equal(sheet.getCell('C6').value, '40,00')
-    assert.equal(sheet.getCell('C7').value, '41,00')
+    assert.equal(sheet.getCell('C6').value, '0:40.000')
+    assert.equal(sheet.getCell('C7').value, '0:41.000')
 })
 
 test('empty or ineligible results fail without producing an empty replacement workbook', async () => {
@@ -157,11 +157,29 @@ test('handles shared AR formulas and rejects missing formulas or invalid marks',
     await assert.rejects(update(marks('one', 'M', [0])), /RECORDS_EXCEL_DATA/)
 })
 
-test('formats consistent hundredths for the original AR formulas, including trailing zeroes and carry', () => {
-    assert.equal(allroundTime(35080), '35,08')
-    assert.equal(allroundTime(40000), '40,00')
-    assert.equal(allroundTime(77404), '1.17,40')
-    assert.equal(allroundTime(59999), '1.00,00')
+test('formats exact milliseconds without rounding up qualification times', () => {
+    assert.equal(allroundTime(35080), '0:35.080')
+    assert.equal(allroundTime(40000), '0:40.000')
+    assert.equal(allroundTime(77404), '1:17.404')
+    assert.equal(allroundTime(59999), '0:59.999')
+    assert.equal(allroundTime(75997), '1:15.997')
+    assert.equal(allroundTime(600000), '10:00.000')
+})
+
+test('adapts legacy scoring formulas once and preserves missing-mark conditions', async () => {
+    const workbook = await fixture()
+    const legacy = 'IF(OR(ISBLANK(C2),ISBLANK(D2)),"No hay alguna marca",' +
+        'VALUE(LEFT(C2,2))+VALUE(RIGHT(C2,2))/100+' +
+        '(VALUE(LEFT(D2,1))*60+VALUE(MID(D2,3,2))+VALUE(RIGHT(D2,2))/100)/2)'
+    workbook.getWorksheet('Allround Histórico').getCell('G2').value = { formula: legacy }
+    const { sheet, updated } = await update(marks('Christopher', 'M', [38490, 75997, 127690, 289680]), workbook)
+    assert.equal(sheet.getCell('D2').value, '1:15.997')
+    const formula = sheet.getCell('G2').formula
+    assert.equal(formula, preciseAllroundFormula(legacy))
+    assert.match(formula, /RIGHT\(D2,3\)\)\/1000/)
+    assert.match(formula, /ISBLANK\(C2\)/)
+    const again = await update(marks('Christopher', 'M', [38490, 75997, 127690, 289680]), updated)
+    assert.equal(again.sheet.getCell('G2').formula, formula)
 })
 
 test('collects all invalid records and reasons, including blanks, nulls, sparse splits and non-finite totals', async () => {
@@ -197,9 +215,9 @@ test('collects all invalid records and reasons, including blanks, nulls, sparse 
             records[2].times = [null, 0, 43000]
             const { sheet } = await update(records)
             assert.equal(sheet.getCell('B2').value, 'first')
-            assert.equal(sheet.getCell('C2').value, '40,00')
-            assert.equal(sheet.getCell('C3').value, '42,00')
-            assert.equal(sheet.getCell('C6').value, '43,00')
+            assert.equal(sheet.getCell('C2').value, '0:40.000')
+            assert.equal(sheet.getCell('C3').value, '0:42.000')
+            assert.equal(sheet.getCell('C6').value, '0:43.000')
         })
         assert.ok(error.issues[0].reasons.includes('RECORDS_ALLROUND_INVALID_GENDER'))
         assert.ok(error.issues[1].reasons.includes('RECORDS_ALLROUND_INVALID_NAME'))

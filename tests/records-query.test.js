@@ -120,8 +120,8 @@ test('Allround accepts Spanish marks returned by the shared query with schema-ba
     assert.equal(output.count, 2)
     const updated = new ExcelJS.Workbook()
     await updated.xlsx.load(output.buffer)
-    assert.equal(updated.getWorksheet('Allround Histórico').getCell('C2').value, '40,00')
-    assert.equal(updated.getWorksheet('Allround Histórico').getCell('C3').value, '42,00')
+    assert.equal(updated.getWorksheet('Allround Histórico').getCell('C2').value, '0:40.000')
+    assert.equal(updated.getWorksheet('Allround Histórico').getCell('C3').value, '0:42.000')
 })
 
 test('old unknown countries stay unknown and are excluded from country filters despite a Spanish profile', async () => {

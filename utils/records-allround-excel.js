@@ -8,11 +8,19 @@ const distances = [500, 1000, 1500, 3000]
 const clone = value => JSON.parse(JSON.stringify(value))
 
 function allroundTime(milliseconds) {
-    const hundredths = Math.round(milliseconds / 10)
-    const minutes = Math.floor(hundredths / 6000)
-    const seconds = Math.floor(hundredths / 100) % 60
-    const fraction = hundredths % 100
-    return `${minutes ? `${minutes}.` : ''}${String(seconds).padStart(2, '0')},${String(fraction).padStart(2, '0')}`
+    const minutes = Math.floor(milliseconds / 60000)
+    const seconds = Math.floor(milliseconds / 1000) % 60
+    return `${minutes}:${String(seconds).padStart(2, '0')}.${String(milliseconds % 1000).padStart(3, '0')}`
+}
+
+function preciseAllroundFormula(formula) {
+    const seconds = cell => `VALUE(LEFT(${cell},FIND(":",${cell})-1))*60+` +
+        `VALUE(MID(${cell},FIND(":",${cell})+1,2))+VALUE(RIGHT(${cell},3))/1000`
+    return formula
+        .replace(/VALUE\(LEFT\((\$?[A-Z]+\$?\d+),1\)\)\*60\+VALUE\(MID\(\1,3,2\)\)\+VALUE\(RIGHT\(\1,2\)\)\/100\b/g,
+            (_, cell) => seconds(cell))
+        .replace(/VALUE\(LEFT\((\$?[A-Z]+\$?\d+),2\)\)\+VALUE\(RIGHT\(\1,2\)\)\/100\b/g,
+            (_, cell) => seconds(cell))
 }
 
 function compareSkaters(a, b) {
@@ -20,7 +28,7 @@ function compareSkaters(a, b) {
     const completeB = distances.every(d => b.best.has(d))
     if (completeA !== completeB) return completeA ? -1 : 1
     if (completeA) {
-        const score = skater => distances.reduce((sum, d) => sum + Math.round(skater.best.get(d) / 10) * 500 / d, 0)
+        const score = skater => distances.reduce((sum, d) => sum + skater.best.get(d) * 500 / d, 0)
         const difference = score(a) - score(b)
         if (Math.abs(difference) > 1e-9) return difference
     } else {
@@ -140,7 +148,7 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
             section.styles.forEach((style, col) => { row.getCell(col + 1).style = clone(style) })
             const originalRow = section.row + i + 1
             const sourceRow = section.formulas.has(originalRow) ? originalRow : templateRow
-            const formula = section.formulas.get(originalRow) || templateFormula
+            const formula = preciseAllroundFormula(section.formulas.get(originalRow) || templateFormula)
             row.getCell(section.total).value = { formula: formula.replace(/(\$?[A-Z]{1,3})(\$?)(\d+)/g,
                 (match, column, absolute, number) => absolute ? match : `${column}${Number(number) + rowNumber - sourceRow}`) }
             if (i >= entries.length) continue
@@ -167,4 +175,4 @@ async function updateAllroundExcel(buffer, records, { now = new Date() } = {}) {
     return { buffer: await writeRecordsWorkbook(workbook, buffer), count: skaters.size, groups: 2 }
 }
 
-module.exports = { updateAllroundExcel, allroundTime }
+module.exports = { updateAllroundExcel, allroundTime, preciseAllroundFormula }

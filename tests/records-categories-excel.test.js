@@ -44,7 +44,7 @@ test('category records honor result nationality even when the current profile ha
         record('MA1', 38000, { country: undefined })
     ])
     assert.equal(count, 3)
-    assert.equal(block(sheet, 'ABSOLUTA').find(b => b.label === '500M, M').time, 41000)
+    assert.equal(block(sheet, 'ABSOLUTA').find(b => b.label === '500M, M').time, '41.000')
 })
 
 test('category values matching block titles are not mistaken for additional headers', async () => {
@@ -116,7 +116,7 @@ test('unrepresented mixed and nonpositive-distance results do not block category
             skater: { fullname: 'Mixed relay', country: 'ES', gender: 'X' } }),
         record('MA2', 0, { date: null, distance: 0 })
     ])
-    assert.equal(block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M').time, 40000)
+    assert.equal(block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M').time, '40.000')
 })
 
 test('adds missing distances using historical MB1 category rather than the current MB2 profile', async () => {
@@ -235,7 +235,34 @@ test('selects category winners by final total regardless of incomplete splits', 
     ])
     const winner = block(sheet, 'JÚNIOR A').find(r => r.label === '500M, M')
     assert.equal(winner.category, 'MA2')
-    assert.equal(winner.time, 40000)
+    assert.equal(winner.time, '40.000')
+})
+
+test('exports category times with seconds and exact milliseconds instead of integer milliseconds', async () => {
+    const records = [
+        record('MA1', 9800, { distance: 100 }),
+        record('LA1', 11310, { distance: 100 }),
+        record('MA1', 26000, { distance: 300 }),
+        record('LA1', 29170, { distance: 300 }),
+        record('MA1', 34350),
+        record('LA1', 59999),
+        record('MB1', 60000, { distance: 1000 }),
+        record('LB1', 67990, { distance: 1000 })
+    ]
+    const first = await update(records)
+    const expected = [
+        ['100M, M', '09.800'], ['100M, F', '11.310'], ['300M, M', '26.000'],
+        ['300M, F', '29.170'], ['500M, M', '34.350'], ['500M, F', '59.999'],
+        ['1000M, M', '1:00.000'], ['1000M, F', '1:07.990']
+    ]
+    for (const result of [first, await update(records, {}, first.updated)]) {
+        const absolute = block(result.sheet, 'ABSOLUTA')
+        for (const [label, value] of expected) {
+            const slot = absolute.find(item => item.label === label)
+            assert.equal(slot.time, value, label)
+            assert.equal(result.sheet.getRow(slot.row).getCell(slot.col + 5).numFmt, '@', label)
+        }
+    }
 })
 
 test('adds 100m only where there are eligible results, and expands bands without overwriting other blocks', async () => {
@@ -314,7 +341,7 @@ test('moves and resizes all category tables with their blocks without corrupting
         assert.equal(table.table.autoFilterRef, table.table.tableRef)
     }
     const slot = block(sheet, 'ABSOLUTA').find(r => r.label === '500M, M')
-    assert.equal(sheet.getRow(slot.row).getCell(slot.col + 5).numFmt, '#,##0')
+    assert.equal(sheet.getRow(slot.row).getCell(slot.col + 5).numFmt, '@')
     assert.equal(sheet.getRow(slot.row).getCell(slot.col + 2).numFmt, 'd/m/yyyy')
     assert.notEqual(sheet.getTable('Group2').table.tableRef, 'C9:G13')
 })

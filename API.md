@@ -107,8 +107,9 @@ que no cumplan la regla. Se incluyen los empates entre deportistas distintos, or
 Si un deportista repite la mejor marca, se muestra solo su primera fecha; se
 identifica por ID, o por nombre normalizado cuando el resultado no dispone de ID.
 Las tablas de cada bloque se desplazan y redimensionan junto con sus cabeceras
-al anadir distancias o empates. Se mantienen los formatos de fecha y separador de miles
-de la plantilla; los tiempos de un minuto o mas se muestran con minutos.
+al anadir distancias o empates. Se mantienen los formatos de fecha de la plantilla.
+Los tiempos totales se escriben como texto con tres decimales: `09.800` o `36.030`
+por debajo de un minuto y `1:00.000` desde un minuto.
 Solo se incluyen las distancias 100, 300, 500, 1000, 1500, 3000, 5000 y 10000 m.
 Las demas se excluyen aunque estuvieran en la plantilla. Se anaden las pruebas
 masculinas y femeninas que falten en cada bloque cuando existan marcas elegibles.

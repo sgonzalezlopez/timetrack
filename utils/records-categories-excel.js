@@ -180,14 +180,12 @@ async function updateCategoriesExcel(buffer, records, { now = new Date(), season
                         date: new Date(record.date),
                         skater: record.skater.fullname || `${record.skater.name || ''} ${record.skater.lastname || ''}`.trim(),
                         category: record.category || '',
-                        totalTime: finalTime(record) < 60000 && record.distance < 1000 ? finalTime(record) :
-                            splitTime(finalTime(record)).replace(/^0(?=\d:)/, '')
+                        totalTime: splitTime(finalTime(record)).replace(/^0(?=\d:)/, '')
                     } : {}
                     for (const [field, col] of block.columns) {
                         row.getCell(col).value = values[field] == null ? null : values[field]
                         if (field === 'date') row.getCell(col).numFmt = row.getCell(col).numFmt || 'dd/mm/yyyy'
-                        if (field === 'totalTime') row.getCell(col).numFmt = typeof values.totalTime === 'number' ?
-                            row.getCell(col).numFmt && row.getCell(col).numFmt !== '0' ? row.getCell(col).numFmt : '#,##0' : '@'
+                        if (field === 'totalTime') row.getCell(col).numFmt = '@'
                     }
                     for (let col = block.start; col <= block.end; col++) {
                         const cell = row.getCell(col)

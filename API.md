@@ -1,5 +1,12 @@
 # API externa de TimeTrack
 
+## Presentacion de tiempos en tablas
+
+Las columnas de tiempos y los detalles de registros muestran parciales y totales
+sin ceros iniciales innecesarios: `36.030`, `1:15.997` o `1:00:00.005`. Se
+conservan los tres decimales y los ceros internos. Los campos editables con mascara
+mantienen su formato completo de entrada; los datos guardados no cambian.
+
 ## Actualizacion del Excel de Mejores registros (interfaz autenticada)
 
 La actualizacion de Excel solo esta disponible para administradores: el boton,

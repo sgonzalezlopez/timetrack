@@ -1,5 +1,22 @@
 core.setOptions({ locale: 'es', appName: 'Time Tracking' })
 
+function formatterMilliseconds(value) {
+   if (value == null || value === '') return '-'
+   const milliseconds = Number(value)
+   if (!Number.isFinite(milliseconds)) return '-'
+   const total = Math.trunc(Math.abs(milliseconds))
+   const hours = Math.floor(total / 3600000)
+   const minutes = Math.floor(total / 60000) % 60
+   const seconds = Math.floor(total / 1000) % 60
+   const fraction = String(total % 1000).padStart(3, '0')
+   const prefix = hours ? `${hours}:${String(minutes).padStart(2, '0')}:` :
+      minutes ? `${minutes}:` : ''
+   const secondsText = prefix ? String(seconds).padStart(2, '0') : String(seconds)
+   return `${milliseconds < 0 ? '-' : ''}${prefix}${secondsText}.${fraction}`
+}
+
+core.formatters.milliseconds = formatterMilliseconds
+
 
 function showDetail(index) {
    $('#table').bootstrapTable('toggleDetailView', index);
@@ -22,7 +39,7 @@ function registryDetailFormatter(index, row) {
              </div>
              <div class="col-11">
                <div class="lap-time">
-                 ${time != null ? moment.utc(time).format('HH:mm:ss.SSS') : '-'}
+                 ${formatterMilliseconds(time)}
                </div>
              </div>
            </div>`;
@@ -37,7 +54,7 @@ function registryDetailFormatter(index, row) {
           </div>
           <div class="col-11">
             <div class="total-time">
-              ${moment.utc(data.totalTime).format('HH:mm:ss.SSS')}
+              ${formatterMilliseconds(data.totalTime)}
             </div>
           </div>
         </div>`;
@@ -124,12 +141,7 @@ function addInput(index) {
 function formatterMillisecondsArray(value, row, index) {
       if (!Array.isArray(value) || value.length === 0) return '';
 
-      html = [];
-      value.forEach(element => {
-      if (element) html.push(`${moment.utc(element).format('HH:mm:ss.SSS')}`)
-
-   });
-   return html.join(', ')
+      return value.filter(element => element).map(formatterMilliseconds).join(', ')
 }
 
 var countries = [];

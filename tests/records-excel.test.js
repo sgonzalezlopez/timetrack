@@ -130,7 +130,7 @@ test('replaces historical results, groups by race and gender and preserves other
     assert.equal(groups, 2)
     assert.equal(sheet.getCell('A2').value, '500M, F')
     assert.equal(sheet.getCell('A2').font.bold, true)
-    assert.equal(sheet.getCell('F3').value, 41032)
+    assert.equal(sheet.getCell('F3').value, '41.032')
     assert.equal(sheet.getCell('E3').value, '11.148, 29.884')
     assert.equal(sheet.getCell('C3').value, 'Ona Rodríguez Cornejo')
     assert.equal(sheet.getCell('A4').value, 2)
@@ -153,21 +153,27 @@ test('uses final totals for ranking and leaves incomplete splits empty', async (
         result({ times: [null, 0, 43000] })
     ])
     const sheet = updated.getWorksheet('Clas. histórica')
-    for (const [row, total] of [[3, 40000], [4, 42000], [5, 43000]]) {
+    for (const [row, total] of [[3, '40.000'], [4, '42.000'], [5, '43.000']]) {
         assert.equal(sheet.getCell(`F${row}`).value, total)
         assert.ok(!sheet.getCell(`E${row}`).value)
     }
 })
 
-test('formats 500m totals of one minute or more as minutes while preserving short totals', async () => {
-    const times = [55760, 59999, 60000, 65210, 78210, 114800]
-    const { updated } = await update(await fixture(), times.map(time => result({ times: [time] })))
+test('exports exact seconds and milliseconds below a minute, and minutes above it', async () => {
+    const times = [5, 9800, 36030, 40000, 55760, 59999, 60000, 65210, 78210, 114800]
+    const records = times.map(time => result({ times: [time] }))
+    const { updated } = await update(await fixture(), records)
     const sheet = updated.getWorksheet('Clas. histórica')
-    const expected = [55760, 59999, '1:00.000', '1:05.210', '1:18.210', '1:54.800']
+    const expected = ['00.005', '09.800', '36.030', '40.000', '55.760', '59.999',
+        '1:00.000', '1:05.210', '1:18.210', '1:54.800']
     expected.forEach((value, index) => {
         assert.equal(sheet.getCell(`F${index + 3}`).value, value)
         assert.equal(sheet.getCell(`A${index + 3}`).value, index + 1)
-        if (typeof value === 'string') assert.equal(sheet.getCell(`F${index + 3}`).numFmt, '@')
+        assert.equal(sheet.getCell(`F${index + 3}`).numFmt, '@')
+    })
+    const repeated = await update(updated, records)
+    expected.forEach((value, index) => {
+        assert.equal(repeated.updated.getWorksheet('Clas. histórica').getCell(`F${index + 3}`).value, value)
     })
 })
 
@@ -198,7 +204,7 @@ test('recognizes reordered columns instead of using fixed column positions', asy
     const sheet = updated.getWorksheet('Clas. histórica')
     assert.equal(sheet.getCell('A3').value.toISOString(), '2026-10-23T00:00:00.000Z')
     assert.equal(sheet.getCell('B3').value, 'International Race (Inzell)')
-    assert.equal(sheet.getCell('C3').value, 41032)
+    assert.equal(sheet.getCell('C3').value, '41.032')
     assert.equal(sheet.getCell('D3').value, 'Ona Rodríguez Cornejo')
     assert.equal(sheet.getCell('G3').value, 1)
 })
@@ -318,7 +324,7 @@ test('historical validation reports every invalid result and all reasons before 
 
 })
 
-test('keeps original race/sex order and per-block total presentation, adding new races at the end', async () => {
+test('keeps original race/sex order and exports formatted totals, adding new races at the end', async () => {
         const workbook = await fixture()
         const sheet = workbook.getWorksheet('Clas. histórica')
         sheet.getCell('A2').value = '500M, F'
@@ -338,8 +344,8 @@ test('keeps original race/sex order and per-block total presentation, adding new
         const out = updated.getWorksheet('Clas. histórica')
         assert.deepEqual([2, 4, 6, 8].map(row => out.getCell(`A${row}`).value),
             ['500M, F', 'Relevo Mixto, X', '1000M, M', '100M, F'])
-        assert.equal(out.getCell('F3').value, 41032)
-        assert.equal(out.getCell('F3').numFmt, '#,##0')
+        assert.equal(out.getCell('F3').value, '41.032')
+        assert.equal(out.getCell('F3').numFmt, '@')
         assert.equal(out.getCell('F5').value, '2:59.650')
         assert.equal(out.getCell('F7').value, '1:07.990')
 })

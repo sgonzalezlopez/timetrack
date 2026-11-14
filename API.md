@@ -15,7 +15,8 @@ Reconoce la hoja `Clas. historica` con o sin tildes/puntuacion, detecta las colu
 por sus cabeceras y reemplaza toda su clasificacion, incluso con cero resultados.
 Conserva las otras hojas, formulas, anchos y estilos de las filas modelo. Reconstruye
 las secciones por prueba y sexo y, si procede, por la agrupacion seleccionada.
-Los tiempos totales siguen en milisegundos y los parciales se escriben formateados.
+Los tiempos totales y parciales se escriben formateados, conservando los tres
+decimales de milisegundos.
 Las filas de marcas de la temporada vigente al actualizar se escriben enteras en
 negrita; las de otras temporadas se escriben sin negrita, conservando el resto de
 la fuente de la plantilla. Se compara la fecha de la marca, no la temporada del
@@ -58,8 +59,9 @@ principio, M/F/X, manteniendo el orden de los demas bloques. La fecha enlazada
 de actualizacion permanece en la primera fila de bloques, junto al primero de 100 m.
 Al actualizar se respeta el orden y el nombre de los bloques prueba/sexo existentes
 en el libro; los bloques nuevos se anaden al final de cada agrupacion de filtros.
-Se conserva el formato de tiempo por bloque: milisegundos con separador de miles
-en distancias cortas y texto minutos:segundos.milisegundos donde lo usa la plantilla.
+Los tiempos totales se exportan como texto `segundos.milisegundos` por debajo de
+un minuto (por ejemplo `36.030`) y `minutos:segundos.milisegundos` a partir de
+un minuto. Los tres decimales se conservan tambien cuando terminan en cero.
 Todo tiempo total de 60000 ms o mas se escribe con minutos, tambien en 500 m
 (por ejemplo, 65210 ms se muestra como `1:05.210`).
 Los estilos de tabla personalizados y sus formatos diferenciales se conservan
